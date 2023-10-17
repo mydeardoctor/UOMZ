@@ -4,6 +4,7 @@
 
 void displayInit();
 void displayHandler();
+void transmitDisplayData();
 
 
 #endif /* INC_DISPLAY_H_ */

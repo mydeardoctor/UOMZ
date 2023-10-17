@@ -1,5 +1,6 @@
 #include "display.h"
 #include "main.h"
+#include "tim.h"
 #include <stdbool.h>
 
 
@@ -33,10 +34,22 @@
 #define MIX_LEDS_OFF			0x71
 
 
+typedef enum
+{
+	CLK_RISING_EDGE,
+	CLK_FALLING_EDGE,
+	STROBE_RISING_EDGE,
+	STROBE_FALLING_EDGE
+} TransmissionState;
+
+
+volatile bool timerBusy = false;
 //Массив данных для индикаторов и светодиодов.
-volatile uint8_t displayData[DISPLAY_DATA_SIZE]; //TODO Общий ресурс.
+volatile uint8_t displayData[DISPLAY_DATA_SIZE];
 
 
+static bool getTimerBusy();
+static void setTimerBusy(bool timerBusy_);
 static uint16_t getVoltage();
 static uint16_t getLux();
 static void convertVoltageToDisplayData(uint16_t voltage);
@@ -46,12 +59,11 @@ static void convertParameterToDisplayData(uint16_t parameter,
 										  uint8_t secondDigitIndex,
 										  uint8_t thirdDigitIndex);
 static uint8_t convertDigitToDisplayData(uint8_t digit);
-static void transmitDisplayData();
+static void startTransmissionOfDisplayData();
 
 
 void displayInit()
 {
-	//TODO Общий ресурс.
 	//Индикаторы не горят.
 	displayData[DISPLAY1_FIRST_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY1_SECOND_DIGIT]	= DISPLAY_EMPTY;
@@ -65,18 +77,38 @@ void displayInit()
 	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
 }
 
-//TODO Общий ресурс. Сделать задачей RTOS либо вызывать периодично от таймера. Сделать передачу по прерываниям. Убрать программную задержку.
+//TODO Сделать задачей RTOS либо вызывать периодично от таймера. Убрать программную задержку.
 void displayHandler()
 {
 	while(true)
 	{
-		uint16_t voltage = getVoltage();
-		uint16_t lux = getLux();
-		convertVoltageToDisplayData(voltage);
-		convertLuxToDisplayData(lux);
-		transmitDisplayData();
+		bool timerBusy_ = getTimerBusy();
+		if(!timerBusy_)
+		{
+			setTimerBusy(true);
+			uint16_t voltage = getVoltage();
+			uint16_t lux = getLux();
+			convertVoltageToDisplayData(voltage);
+			convertLuxToDisplayData(lux);
+			startTransmissionOfDisplayData();
+		}
 		for(uint32_t i = 0; i < 100000; ++i){}
 	}
+}
+
+static bool getTimerBusy()
+{
+	HAL_NVIC_DisableIRQ(TIM7_IRQn);
+	bool timerBusy_ = timerBusy;
+	HAL_NVIC_EnableIRQ(TIM7_IRQn);
+	return timerBusy_;
+}
+
+static void setTimerBusy(bool timerBusy_)
+{
+	HAL_NVIC_DisableIRQ(TIM7_IRQn);
+	timerBusy = timerBusy_;
+	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
 
 static uint16_t getVoltage()
@@ -151,7 +183,6 @@ static void convertParameterToDisplayData(uint16_t parameter,
 	secondDigitDisplayData = convertDigitToDisplayData(secondDigit);
 	thirdDigitDisplayData = convertDigitToDisplayData(thirdDigit);
 
-	//TODO Общий ресурс.
 	displayData[firstDigitIndex] = firstDigitDisplayData;
 	displayData[secondDigitIndex] = secondDigitDisplayData;
 	displayData[thirdDigitIndex] = thirdDigitDisplayData;
@@ -199,15 +230,24 @@ static uint8_t convertDigitToDisplayData(uint8_t digit)
 	return data;
 }
 
-//TODO Сделать через прерывания. Общий ресурс.
-static void transmitDisplayData()
+static void startTransmissionOfDisplayData()
 {
-	for(int8_t i = DISPLAY_DATA_SIZE; i >= 0; --i)
+	HAL_TIM_Base_Start_IT(&htim7);
+}
+
+void transmitDisplayData()
+{
+	static TransmissionState transmissionState = CLK_RISING_EDGE;
+	static int8_t byteIndex = DISPLAY_DATA_SIZE - 1;
+	static uint8_t bitIndex = 0;
+
+	switch(transmissionState)
 	{
-		uint8_t byteToTransmit = displayData[i];
-		for(uint8_t j = 0; j < 8; ++j)
-		{
-			uint8_t bitToTransmit = byteToTransmit & 0x1;
+		case CLK_RISING_EDGE:
+		default:
+
+			uint8_t byteToTransmit = displayData[byteIndex];
+			uint8_t bitToTransmit = (byteToTransmit >> bitIndex) & 0x1;
 			if(bitToTransmit == 0)
 			{
 				HAL_GPIO_WritePin(RG_DATA0_GPIO_Port, RG_DATA0_Pin,
@@ -218,18 +258,55 @@ static void transmitDisplayData()
 				HAL_GPIO_WritePin(RG_DATA0_GPIO_Port, RG_DATA0_Pin,
 								  GPIO_PIN_SET);
 			}
-
 			HAL_GPIO_WritePin(RG_CLK_GPIO_Port, RG_CLK_Pin, GPIO_PIN_SET);
-			for(uint8_t i = 0; i < 200; ++i){}
+
+			transmissionState = CLK_FALLING_EDGE;
+
+			break;
+
+
+		case CLK_FALLING_EDGE:
+
 			HAL_GPIO_WritePin(RG_CLK_GPIO_Port, RG_CLK_Pin, GPIO_PIN_RESET);
 
-			byteToTransmit = byteToTransmit >> 1;
-		}
+			++bitIndex;
+			if(bitIndex > 7)
+			{
+				bitIndex = 0;
+				--byteIndex;
+			}
+			if(byteIndex >= 0)
+			{
+				transmissionState = CLK_RISING_EDGE;
+			}
+			else
+			{
+				byteIndex = DISPLAY_DATA_SIZE - 1;
+				transmissionState = STROBE_RISING_EDGE;
+			}
+
+			break;
+
+
+		case STROBE_RISING_EDGE:
+
+			HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin,
+							  GPIO_PIN_SET);
+
+			transmissionState = STROBE_FALLING_EDGE;
+
+			break;
+
+
+		case STROBE_FALLING_EDGE:
+
+			HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin,
+							  GPIO_PIN_RESET);
+
+			HAL_TIM_Base_Stop_IT(&htim7);
+			timerBusy = false;
+			transmissionState = CLK_RISING_EDGE;
+
+			break;
 	}
-
-	HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin, GPIO_PIN_SET);
-	for(uint8_t i = 0; i < 200; ++i){}
-	HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin, GPIO_PIN_RESET);
-
-	HAL_GPIO_WritePin(RG_DATA0_GPIO_Port, RG_DATA0_Pin, GPIO_PIN_RESET);
 }
