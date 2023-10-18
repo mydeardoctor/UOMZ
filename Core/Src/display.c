@@ -47,7 +47,7 @@ const uint8_t LEDS_OFF				= 0xFF;
 const uint8_t MIX_LEDS_OFF			= 0x71;
 
 
-static bool getTimerBusy();
+static bool getTimerBusy(); //TODO Заменить на семафор/мьютекс
 static void setTimerBusy(bool timerBusy_);
 static uint16_t getVoltage();
 static uint16_t getLux();

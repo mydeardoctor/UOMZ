@@ -75,6 +75,10 @@ void Error_Handler(void);
 #define BAR_L_OE_GPIO_Port GPIOA
 #define MIXLED_OE_Pin GPIO_PIN_10
 #define MIXLED_OE_GPIO_Port GPIOA
+#define SCL_Pin GPIO_PIN_8
+#define SCL_GPIO_Port GPIOB
+#define SDA_Pin GPIO_PIN_9
+#define SDA_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 
