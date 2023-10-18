@@ -4,34 +4,7 @@
 #include <stdbool.h>
 
 
-//Размер массива данных.
-#define DISPLAY_DATA_SIZE		9u
-//Индексы в массиве данных.
-#define DISPLAY1_FIRST_DIGIT	6u
-#define DISPLAY1_SECOND_DIGIT	7u
-#define DISPLAY1_THIRD_DIGIT	5u
-#define DISPLAY2_FIRST_DIGIT	1u
-#define DISPLAY2_SECOND_DIGIT	2u
-#define DISPLAY2_THIRD_DIGIT	0u
-#define LEDS_LEFT				3u
-#define LEDS_RIGHT				8u
-#define MIX_LEDS				4u
-//Значения данных для индикаторов.
-#define DISPLAY_EMPTY			0xFF
-#define DISPLAY_DIGIT_0			0x88
-#define DISPLAY_DIGIT_1			0xEE
-#define DISPLAY_DIGIT_2			0x94
-#define DISPLAY_DIGIT_3			0xC4
-#define DISPLAY_DIGIT_4			0xE2
-#define DISPLAY_DIGIT_5			0xC1
-#define DISPLAY_DIGIT_6			0x81
-#define DISPLAY_DIGIT_7			0xEC
-#define DISPLAY_DIGIT_8			0x80
-#define DISPLAY_DIGIT_9			0xC0
-#define DISPLAY_FULL			0x0
-//Значения данных для светодиодов.
-#define LEDS_OFF				0xFF
-#define MIX_LEDS_OFF			0x71
+#define DISPLAY_DATA_SIZE 9u
 
 
 typedef enum
@@ -46,6 +19,32 @@ typedef enum
 volatile bool timerBusy = false;
 //Массив данных для индикаторов и светодиодов.
 volatile uint8_t displayData[DISPLAY_DATA_SIZE];
+//Индексы в массиве данных.
+const uint8_t DISPLAY1_FIRST_DIGIT	= 6u;
+const uint8_t DISPLAY1_SECOND_DIGIT	= 7u;
+const uint8_t DISPLAY1_THIRD_DIGIT	= 5u;
+const uint8_t DISPLAY2_FIRST_DIGIT	= 1u;
+const uint8_t DISPLAY2_SECOND_DIGIT	= 2u;
+const uint8_t DISPLAY2_THIRD_DIGIT	= 0u;
+const uint8_t LEDS_LEFT				= 3u;
+const uint8_t LEDS_RIGHT			= 8u;
+const uint8_t MIX_LEDS				= 4u;
+//Значения данных для индикаторов.
+const uint8_t DISPLAY_EMPTY			= 0xFF;
+const uint8_t DISPLAY_DIGIT_0		= 0x88;
+const uint8_t DISPLAY_DIGIT_1		= 0xEE;
+const uint8_t DISPLAY_DIGIT_2		= 0x94;
+const uint8_t DISPLAY_DIGIT_3		= 0xC4;
+const uint8_t DISPLAY_DIGIT_4		= 0xE2;
+const uint8_t DISPLAY_DIGIT_5		= 0xC1;
+const uint8_t DISPLAY_DIGIT_6		= 0x81;
+const uint8_t DISPLAY_DIGIT_7		= 0xEC;
+const uint8_t DISPLAY_DIGIT_8		= 0x80;
+const uint8_t DISPLAY_DIGIT_9		= 0xC0;
+const uint8_t DISPLAY_FULL			= 0x0;
+//Значения данных для светодиодов.
+const uint8_t LEDS_OFF				= 0xFF;
+const uint8_t MIX_LEDS_OFF			= 0x71;
 
 
 static bool getTimerBusy();
@@ -77,7 +76,8 @@ void displayInit()
 	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
 }
 
-//TODO Сделать задачей RTOS либо вызывать периодично от таймера. Убрать программную задержку.
+//TODO Сделать задачей RTOS либо вызывать периодично от таймера.
+//Убрать программную задержку.
 void displayHandler()
 {
 	while(true)
