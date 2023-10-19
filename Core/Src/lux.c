@@ -5,6 +5,7 @@
 
 #define LTR_REGISTERS_SIZE 9u
 
+
 //TODO Проверить
 typedef enum
 {
@@ -110,6 +111,11 @@ const uint8_t DATA_STATUS_OFFSET	  = 2u;
 const uint8_t DATA_GAIN_RANGE_OFFSET  = 4u;
 const uint8_t DATA_VALID_OFFSET		  = 7u;
 
+const uint8_t MODE_MASK				  = 0x01;
+const uint8_t SW_RESET_MASK			  = 0x02;
+const uint8_t GAIN_MASK				  = 0x1C;
+const uint8_t MEASUREMENT_RATE_MASK	  = 0x07;
+const uint8_t INTEGRATION_TIME_MASK	  = 0x38;
 const uint8_t REVISION_ID_MASK		  = 0x0F;
 const uint8_t PART_NUMBER_ID_MASK	  = 0xF0;
 const uint8_t DATA_STATUS_MASK		  = 0x04;
@@ -132,6 +138,21 @@ static void setDataCh0HighRegister(uint8_t dataCh0High);
 static void setStatusRegister(DataStatusOption dataStatusOption,
 							  DataGainRangeOption dataGainRangeOption,
 							  DataValidOption dataValidOption);
+static ModeOption getMode();
+static SwResetOption getSwReset();
+static GainOption getGain();
+static MeasurementRateOption getMeasurementRate();
+static IntegrationTimeOption getIntegrationTime();
+static uint8_t getRevisionId();
+static uint8_t getPartNumberId();
+static uint8_t getManufacturerId();
+static uint8_t getDataCh1Low();
+static uint8_t getDataCh1High();
+static uint8_t getDataCh0Low();
+static uint8_t getDataCh0High();
+static DataStatusOption getDataStatus();
+static DataGainRangeOption getDataGainRange();
+static DataValidOption getDataValid();
 
 
 //TODO Спрятать низкоуровневые дедали в функции.
@@ -259,7 +280,111 @@ static void setStatusRegister(DataStatusOption dataStatusOption,
 	ltrRegisters[STATUS_INDEX] = reg;
 }
 
-//TODO геттеры
+static ModeOption getMode()
+{
+	uint8_t reg = ltrRegisters[CONTR_INDEX];
+	ModeOption modeOption = (ModeOption)((reg & MODE_MASK) >> MODE_OFFSET);
+	return modeOption;
+}
+
+static SwResetOption getSwReset()
+{
+	uint8_t reg = ltrRegisters[CONTR_INDEX];
+	SwResetOption swResetOption = (SwResetOption)
+			((reg & SW_RESET_MASK) >> SW_RESET_OFFSET);
+	return swResetOption;
+}
+
+static GainOption getGain()
+{
+	uint8_t reg = ltrRegisters[CONTR_INDEX];
+	GainOption gainOption = (GainOption)((reg & GAIN_MASK) >> GAIN_OFFSET);
+	return gainOption;
+}
+
+static MeasurementRateOption getMeasurementRate()
+{
+	uint8_t reg = ltrRegisters[MEAS_RATE_INDEX];
+	MeasurementRateOption measurementRateOption = (MeasurementRateOption)
+			((reg & MEASUREMENT_RATE_MASK) >> MEASUREMENT_RATE_OFFSET);
+	return measurementRateOption;
+}
+
+static IntegrationTimeOption getIntegrationTime()
+{
+	uint8_t reg = ltrRegisters[MEAS_RATE_INDEX];
+	IntegrationTimeOption integrationTimeOption = (IntegrationTimeOption)
+			((reg & INTEGRATION_TIME_MASK) >> INTEGRATION_TIME_OFFSET);
+	return integrationTimeOption;
+}
+
+static uint8_t getRevisionId()
+{
+	uint8_t reg = ltrRegisters[PART_ID_INDEX];
+	uint8_t revisionId = (reg & REVISION_ID_MASK) >> REVISION_ID_OFFSET;
+	return revisionId;
+}
+
+static uint8_t getPartNumberId()
+{
+	uint8_t reg = ltrRegisters[PART_ID_INDEX];
+	uint8_t partNumberId = (reg & PART_NUMBER_ID_MASK) >> PART_NUMBER_ID_OFFSET;
+	return partNumberId;
+}
+
+static uint8_t getManufacturerId()
+{
+	uint8_t reg = ltrRegisters[MANUFAC_ID_INDEX];
+	return reg;
+}
+
+static uint8_t getDataCh1Low()
+{
+	uint8_t reg = ltrRegisters[DATA_CH1_0_INDEX];
+	return reg;
+}
+
+static uint8_t getDataCh1High()
+{
+	uint8_t reg = ltrRegisters[DATA_CH1_1_INDEX];
+	return reg;
+}
+
+static uint8_t getDataCh0Low()
+{
+	uint8_t reg = ltrRegisters[DATA_CH0_0_INDEX];
+	return reg;
+}
+
+static uint8_t getDataCh0High()
+{
+	uint8_t reg = ltrRegisters[DATA_CH0_1_INDEX];
+	return reg;
+}
+
+static DataStatusOption getDataStatus()
+{
+	uint8_t reg = ltrRegisters[STATUS_INDEX];
+	DataStatusOption dataStatusOption = (DataStatusOption)
+			((reg & DATA_STATUS_MASK) >> DATA_STATUS_OFFSET);
+	return dataStatusOption;
+}
+
+static DataGainRangeOption getDataGainRange()
+{
+	uint8_t reg = ltrRegisters[STATUS_INDEX];
+	DataGainRangeOption dataGainRangeOption = (DataGainRangeOption)
+			((reg & DATA_GAIN_RANGE_MASK) >> DATA_GAIN_RANGE_OFFSET);
+	return dataGainRangeOption;
+}
+
+static DataValidOption getDataValid()
+{
+	uint8_t reg = ltrRegisters[STATUS_INDEX];
+	DataValidOption dataValidOption = (DataValidOption)
+			((reg & DATA_VALID_MASK) >> DATA_VALID_OFFSET);
+	return dataValidOption;
+}
 
 //static uin16_t calculateLux(channel0Msb, channel0Lsb, channel1Msb, channel1Lsb)
 //{
