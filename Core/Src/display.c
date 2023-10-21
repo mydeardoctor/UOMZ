@@ -19,9 +19,9 @@ typedef enum
 } TransmissionState;
 
 
-volatile bool timerBusy = false; //TODO Заменить на семафор
 extern osMutexId_t mutexVoltageHandle;
 extern osMutexId_t mutexLuxHandle;
+extern osSemaphoreId_t semaphoreDisplayHandle;
 
 //Массив данных для индикаторов и светодиодов.
 volatile uint8_t displayData[DISPLAY_DATA_SIZE];
@@ -53,8 +53,6 @@ const uint8_t LEDS_OFF				= 0xFF;
 const uint8_t MIX_LEDS_OFF			= 0x71;
 
 
-static bool getTimerBusy(); //TODO Заменить на семафор/мьютекс
-static void setTimerBusy(bool timerBusy_);
 static uint16_t getVoltage();
 static uint16_t getLux();
 static void convertVoltageToDisplayData(uint16_t voltage);
@@ -65,9 +63,10 @@ static void convertParameterToDisplayData(uint16_t parameter,
 										  uint8_t thirdDigitIndex);
 static uint8_t convertDigitToDisplayData(uint8_t digit);
 static void startTransmissionOfDisplayData();
+static void waitForEndOfTransmission();
 
 
-void displayInit()
+void displayInit() //TODO инициализация внутри задачи
 {
 	//Индикаторы не горят.
 	displayData[DISPLAY1_FIRST_DIGIT]	= DISPLAY_EMPTY;
@@ -84,55 +83,21 @@ void displayInit()
 
 void taskDisplayFunction(void *argument)
 {
+	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
+
 	while(true)
 	{
-		bool timerBusy_ = getTimerBusy();
-		if(!timerBusy_)
-		{
-			setTimerBusy(true);
-			uint16_t voltage_ = getVoltage();
-			uint16_t lux_ = getLux();
-			convertVoltageToDisplayData(voltage_);
-			convertLuxToDisplayData(lux_);
-			startTransmissionOfDisplayData();
-		}
-		osDelay(500);
+		uint32_t tick = osKernelGetTickCount();
+
+		uint16_t voltage_ = getVoltage();
+		uint16_t lux_ = getLux();
+		convertVoltageToDisplayData(voltage_);
+		convertLuxToDisplayData(lux_);
+		startTransmissionOfDisplayData();
+		waitForEndOfTransmission();
+
+		osDelayUntil(tick + pdMS_TO_TICKS(500));
 	}
-}
-
-//TODO Сделать задачей RTOS либо вызывать периодично от таймера.
-//Убрать программную задержку.
-void displayHandler()
-{
-	while(true)
-	{
-		bool timerBusy_ = getTimerBusy();
-		if(!timerBusy_)
-		{
-			setTimerBusy(true);
-			uint16_t voltage = getVoltage();
-			uint16_t lux = getLux();
-			convertVoltageToDisplayData(voltage);
-			convertLuxToDisplayData(lux);
-			startTransmissionOfDisplayData();
-		}
-		for(uint32_t i = 0; i < 100000; ++i){}
-	}
-}
-
-static bool getTimerBusy()
-{
-	HAL_NVIC_DisableIRQ(TIM7_IRQn);
-	bool timerBusy_ = timerBusy;
-	HAL_NVIC_EnableIRQ(TIM7_IRQn);
-	return timerBusy_;
-}
-
-static void setTimerBusy(bool timerBusy_)
-{
-	HAL_NVIC_DisableIRQ(TIM7_IRQn);
-	timerBusy = timerBusy_;
-	HAL_NVIC_EnableIRQ(TIM7_IRQn);
 }
 
 static uint16_t getVoltage()
@@ -247,7 +212,12 @@ static void startTransmissionOfDisplayData()
 	HAL_TIM_Base_Start_IT(&htim7);
 }
 
-void transmitDisplayData()
+static void waitForEndOfTransmission()
+{
+	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
+}
+
+void transmitDisplayData() //TODO Переименовать в interrupt handler
 {
 	static TransmissionState transmissionState = CLK_RISING_EDGE;
 	static int8_t byteIndex = DISPLAY_DATA_SIZE - 1;
@@ -316,8 +286,8 @@ void transmitDisplayData()
 							  GPIO_PIN_RESET);
 
 			HAL_TIM_Base_Stop_IT(&htim7);
-			timerBusy = false;
 			transmissionState = CLK_RISING_EDGE;
+			osSemaphoreRelease(semaphoreDisplayHandle);
 
 			break;
 	}

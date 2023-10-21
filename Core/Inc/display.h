@@ -3,7 +3,6 @@
 
 
 void displayInit();
-void displayHandler();
 void transmitDisplayData();
 
 

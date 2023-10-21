@@ -21,9 +21,10 @@ void taskVoltageFunction(void *argument)
 {
 	while(true)
 	{
+		uint32_t tick = osKernelGetTickCount();
 		uint16_t voltage_ = calculateVoltage();
 		setVoltage(voltage_);
-		osDelay(pdMS_TO_TICKS(500));
+		osDelayUntil(tick + pdMS_TO_TICKS(500));
 	}
 }
 
