@@ -2,6 +2,9 @@
 #define INC_LUX_H_
 
 
+extern volatile uint16_t lux;
+
+
 void luxInit();
 
 

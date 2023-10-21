@@ -3,7 +3,7 @@
 #include "i2c.h"
 #include "lux.h"
 #include "cmsis_os.h"
-
+//TODO Разделить низкоуровневую и высокоуровневую часть
 
 #define LTR_REGISTERS_SIZE 9u
 
@@ -75,6 +75,9 @@ typedef enum
 	DATA_IS_INVALID = 0x1
 } DataValidOption;
 
+
+volatile uint16_t lux = 999u;
+extern osMutexId_t mutexLuxHandle;
 
 volatile uint8_t ltrRegisters[LTR_REGISTERS_SIZE];
 const uint8_t CONTR_INDEX	   	 = 0u;
@@ -155,6 +158,8 @@ static uint8_t getDataCh0High();
 static DataStatusOption getDataStatus();
 static DataGainRangeOption getDataGainRange();
 static DataValidOption getDataValid();
+static uint16_t calculateLux();
+static void setLux(uint16_t lux_);
 
 
 //TODO Спрятать низкоуровневые дедали в функции.
@@ -206,7 +211,9 @@ void taskLuxFunction(void *argument)
 {
 	while(true)
 	{
-		osDelay(10);
+		uint16_t lux_ = calculateLux();
+		setLux(lux_);
+		osDelay(pdMS_TO_TICKS(500));
 	}
 }
 
@@ -394,11 +401,23 @@ static DataValidOption getDataValid()
 	return dataValidOption;
 }
 
-//static uin16_t calculateLux(channel0Msb, channel0Lsb, channel1Msb, channel1Lsb)
-//{
-//	uint16_t lux = 0;
-//
-//
-//
-//	return lux;
-//}
+static uint16_t calculateLux()
+{
+	static uint16_t lux_ = 999u;
+	uint16_t temp = lux_;
+
+	lux_--;
+	if(lux_ > 999)
+	{
+		lux_ = 999;
+	}
+
+	return temp;
+}
+
+static void setLux(uint16_t lux_)
+{
+	osMutexAcquire(mutexLuxHandle, osWaitForever);
+	lux = lux_;
+	osMutexRelease(mutexLuxHandle);
+}

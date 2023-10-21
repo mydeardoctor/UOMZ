@@ -25,8 +25,9 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "display.h"
+#include "voltage.h"
 #include "lux.h"
+#include "display.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -93,9 +94,9 @@ int main(void)
   MX_TIM7_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
+  //voltageInit();
+  //luxInit();
   displayInit();
-//  displayHandler();
-//  luxInit();
   /* USER CODE END 2 */
 
   /* Init scheduler */

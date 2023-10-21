@@ -84,6 +84,18 @@ const osThreadAttr_t taskDisplay_attributes = {
   .cb_size = sizeof(taskDisplayControlBlock),
   .stack_mem = &taskDisplayBuffer[0],
   .stack_size = sizeof(taskDisplayBuffer),
+  .priority = (osPriority_t) osPriorityHigh,
+};
+/* Definitions for taskVoltage */
+osThreadId_t taskVoltageHandle;
+uint32_t taskVoltageBuffer[ 128 ];
+osStaticThreadDef_t taskVoltageControlBlock;
+const osThreadAttr_t taskVoltage_attributes = {
+  .name = "taskVoltage",
+  .cb_mem = &taskVoltageControlBlock,
+  .cb_size = sizeof(taskVoltageControlBlock),
+  .stack_mem = &taskVoltageBuffer[0],
+  .stack_size = sizeof(taskVoltageBuffer),
   .priority = (osPriority_t) osPriorityNormal,
 };
 /* Definitions for mutexLux */
@@ -101,6 +113,14 @@ const osMutexAttr_t mutexI2c_attributes = {
   .name = "mutexI2c",
   .cb_mem = &mutexI2cControlBlock,
   .cb_size = sizeof(mutexI2cControlBlock),
+};
+/* Definitions for mutexVoltage */
+osMutexId_t mutexVoltageHandle;
+osStaticMutexDef_t mutexVoltageControlBlock;
+const osMutexAttr_t mutexVoltage_attributes = {
+  .name = "mutexVoltage",
+  .cb_mem = &mutexVoltageControlBlock,
+  .cb_size = sizeof(mutexVoltageControlBlock),
 };
 /* Definitions for semaphoreDisplay */
 osSemaphoreId_t semaphoreDisplayHandle;
@@ -127,6 +147,7 @@ const osSemaphoreAttr_t semaphoreLux_attributes = {
 void taskDefaultFunction(void *argument);
 extern void taskLuxFunction(void *argument);
 extern void taskDisplayFunction(void *argument);
+extern void taskVoltageFunction(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -145,6 +166,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of mutexI2c */
   mutexI2cHandle = osMutexNew(&mutexI2c_attributes);
+
+  /* creation of mutexVoltage */
+  mutexVoltageHandle = osMutexNew(&mutexVoltage_attributes);
 
   /* USER CODE BEGIN RTOS_MUTEX */
   /* add mutexes, ... */
@@ -178,6 +202,9 @@ void MX_FREERTOS_Init(void) {
 
   /* creation of taskDisplay */
   taskDisplayHandle = osThreadNew(taskDisplayFunction, NULL, &taskDisplay_attributes);
+
+  /* creation of taskVoltage */
+  taskVoltageHandle = osThreadNew(taskVoltageFunction, NULL, &taskVoltage_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */

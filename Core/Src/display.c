@@ -1,6 +1,8 @@
 #include <stdbool.h>
 #include "main.h"
 #include "tim.h"
+#include "voltage.h"
+#include "lux.h"
 #include "display.h"
 #include "cmsis_os.h"
 
@@ -18,6 +20,9 @@ typedef enum
 
 
 volatile bool timerBusy = false; //TODO Заменить на семафор
+extern osMutexId_t mutexVoltageHandle;
+extern osMutexId_t mutexLuxHandle;
+
 //Массив данных для индикаторов и светодиодов.
 volatile uint8_t displayData[DISPLAY_DATA_SIZE];
 //Индексы в массиве данных.
@@ -85,10 +90,10 @@ void taskDisplayFunction(void *argument)
 		if(!timerBusy_)
 		{
 			setTimerBusy(true);
-			uint16_t voltage = getVoltage();
-			uint16_t lux = getLux();
-			convertVoltageToDisplayData(voltage);
-			convertLuxToDisplayData(lux);
+			uint16_t voltage_ = getVoltage();
+			uint16_t lux_ = getLux();
+			convertVoltageToDisplayData(voltage_);
+			convertLuxToDisplayData(lux_);
 			startTransmissionOfDisplayData();
 		}
 		osDelay(500);
@@ -132,32 +137,20 @@ static void setTimerBusy(bool timerBusy_)
 
 static uint16_t getVoltage()
 {
-	static uint16_t voltage = 0;
-
-	uint16_t temp = voltage;
-
-	++voltage;
-	if(voltage > 999)
-	{
-		voltage = 0;
-	}
-
-	return temp;
+	uint16_t voltage_ = 0;
+	osMutexAcquire(mutexVoltageHandle, osWaitForever);
+	voltage_ = voltage;
+	osMutexRelease(mutexVoltageHandle);
+	return voltage_;
 }
 
 static uint16_t getLux()
 {
-	static uint16_t lux = 999;
-
-	uint16_t temp = lux;
-
-	--lux;
-	if(lux > 999)
-	{
-		lux = 999;
-	}
-
-	return temp;
+	uint16_t lux_ = 0;
+	osMutexAcquire(mutexLuxHandle, osWaitForever);
+	lux_ = lux;
+	osMutexRelease(mutexLuxHandle);
+	return lux_;
 }
 
 static void convertVoltageToDisplayData(uint16_t voltage)
