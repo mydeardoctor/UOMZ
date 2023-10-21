@@ -1,7 +1,8 @@
-#include "display.h"
+#include <stdbool.h>
 #include "main.h"
 #include "tim.h"
-#include <stdbool.h>
+#include "display.h"
+#include "cmsis_os.h"
 
 
 #define DISPLAY_DATA_SIZE 9u
@@ -16,7 +17,7 @@ typedef enum
 } TransmissionState;
 
 
-volatile bool timerBusy = false;
+volatile bool timerBusy = false; //TODO Заменить на семафор
 //Массив данных для индикаторов и светодиодов.
 volatile uint8_t displayData[DISPLAY_DATA_SIZE];
 //Индексы в массиве данных.
@@ -74,6 +75,24 @@ void displayInit()
 	displayData[LEDS_LEFT]	= LEDS_OFF;
 	displayData[LEDS_RIGHT]	= LEDS_OFF;
 	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
+}
+
+void taskDisplayFunction(void *argument)
+{
+	while(true)
+	{
+		bool timerBusy_ = getTimerBusy();
+		if(!timerBusy_)
+		{
+			setTimerBusy(true);
+			uint16_t voltage = getVoltage();
+			uint16_t lux = getLux();
+			convertVoltageToDisplayData(voltage);
+			convertLuxToDisplayData(lux);
+			startTransmissionOfDisplayData();
+		}
+		osDelay(500);
+	}
 }
 
 //TODO Сделать задачей RTOS либо вызывать периодично от таймера.

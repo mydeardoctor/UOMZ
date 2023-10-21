@@ -1,6 +1,8 @@
-#include "lux.h"
-#include "i2c.h"
+#include <stdbool.h>
 #include "main.h"
+#include "i2c.h"
+#include "lux.h"
+#include "cmsis_os.h"
 
 
 #define LTR_REGISTERS_SIZE 9u
@@ -200,7 +202,13 @@ void luxInit()
 	//TODO имплементировать коллбеки. Нон блокинг через прерывания. В коллбеке выдача разрешения/семафора на дальнейшую работу. задачу-вызов определять по адресу буфера
 }
 
-
+void taskLuxFunction(void *argument)
+{
+	while(true)
+	{
+		osDelay(10);
+	}
+}
 
 //TODO отладить
 static void setDefaultLtrRegisterValues()
