@@ -1,10 +1,8 @@
 #include <stdbool.h>
-#include "main.h"
+#include "cmsis_os.h"
 #include "tim.h"
 #include "voltage.h"
 #include "lux.h"
-#include "display.h"
-#include "cmsis_os.h"
 
 
 #define DISPLAY_DATA_SIZE 9u
@@ -53,6 +51,7 @@ const uint8_t LEDS_OFF				= 0xFF;
 const uint8_t MIX_LEDS_OFF			= 0x71;
 
 
+static void displayInit();
 static uint16_t getVoltage();
 static uint16_t getLux();
 static void convertVoltageToDisplayData(uint16_t voltage);
@@ -66,24 +65,9 @@ static void startTransmissionOfDisplayData();
 static void waitForEndOfTransmission();
 
 
-void displayInit() //TODO инициализация внутри задачи
-{
-	//Индикаторы не горят.
-	displayData[DISPLAY1_FIRST_DIGIT]	= DISPLAY_EMPTY;
-	displayData[DISPLAY1_SECOND_DIGIT]	= DISPLAY_EMPTY;
-	displayData[DISPLAY1_THIRD_DIGIT]	= DISPLAY_EMPTY;
-	displayData[DISPLAY2_FIRST_DIGIT]	= DISPLAY_EMPTY;
-	displayData[DISPLAY2_SECOND_DIGIT]	= DISPLAY_EMPTY;
-	displayData[DISPLAY2_THIRD_DIGIT]	= DISPLAY_EMPTY;
-	//Светодиоды не горят.
-	displayData[LEDS_LEFT]	= LEDS_OFF;
-	displayData[LEDS_RIGHT]	= LEDS_OFF;
-	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
-}
-
 void taskDisplayFunction(void *argument)
 {
-	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
+	displayInit();
 
 	while(true)
 	{
@@ -98,6 +82,23 @@ void taskDisplayFunction(void *argument)
 
 		osDelayUntil(tick + pdMS_TO_TICKS(500));
 	}
+}
+
+static void displayInit()
+{
+	//Индикаторы не горят.
+	displayData[DISPLAY1_FIRST_DIGIT]	= DISPLAY_EMPTY;
+	displayData[DISPLAY1_SECOND_DIGIT]	= DISPLAY_EMPTY;
+	displayData[DISPLAY1_THIRD_DIGIT]	= DISPLAY_EMPTY;
+	displayData[DISPLAY2_FIRST_DIGIT]	= DISPLAY_EMPTY;
+	displayData[DISPLAY2_SECOND_DIGIT]	= DISPLAY_EMPTY;
+	displayData[DISPLAY2_THIRD_DIGIT]	= DISPLAY_EMPTY;
+	//Светодиоды не горят.
+	displayData[LEDS_LEFT]	= LEDS_OFF;
+	displayData[LEDS_RIGHT]	= LEDS_OFF;
+	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
+
+	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
 }
 
 static uint16_t getVoltage()
@@ -217,7 +218,7 @@ static void waitForEndOfTransmission()
 	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
 }
 
-void transmitDisplayData() //TODO Переименовать в interrupt handler
+void displayInterruptHandler()
 {
 	static TransmissionState transmissionState = CLK_RISING_EDGE;
 	static int8_t byteIndex = DISPLAY_DATA_SIZE - 1;

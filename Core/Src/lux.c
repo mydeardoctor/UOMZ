@@ -1,8 +1,7 @@
 #include <stdbool.h>
-#include "main.h"
-#include "i2c.h"
-#include "lux.h"
 #include "cmsis_os.h"
+#include "i2c.h"
+
 //TODO Разделить низкоуровневую и высокоуровневую часть
 
 #define LTR_REGISTERS_SIZE 9u
@@ -128,6 +127,7 @@ const uint8_t DATA_GAIN_RANGE_MASK	  = 0x70;
 const uint8_t DATA_VALID_MASK		  = 0x80;
 
 
+static void luxInit();
 static void setDefaultLtrRegisterValues();
 static void setContrRegister(ModeOption modeOption,
 							 SwResetOption swResetOption,
@@ -162,10 +162,25 @@ static uint16_t calculateLux();
 static void setLux(uint16_t lux_);
 
 
+void taskLuxFunction(void *argument)
+{
+	luxInit();
+
+	while(true)
+	{
+		uint32_t tick = osKernelGetTickCount();
+
+		uint16_t lux_ = calculateLux();
+		setLux(lux_);
+
+		osDelayUntil(tick + pdMS_TO_TICKS(500));
+	}
+}
+
 //TODO Спрятать низкоуровневые дедали в функции.
 //Функции инициализации каждого регистра
 //Начальные значения
-void luxInit()
+static void luxInit()
 {
 	setDefaultLtrRegisterValues();
 
@@ -205,17 +220,6 @@ void luxInit()
 	for(uint32_t i = 0; i < 500000; ++i){}
 
 	//TODO имплементировать коллбеки. Нон блокинг через прерывания. В коллбеке выдача разрешения/семафора на дальнейшую работу. задачу-вызов определять по адресу буфера
-}
-
-void taskLuxFunction(void *argument)
-{
-	while(true)
-	{
-		uint32_t tick = osKernelGetTickCount();
-		uint16_t lux_ = calculateLux();
-		setLux(lux_);
-		osDelayUntil(tick + pdMS_TO_TICKS(500));
-	}
 }
 
 //TODO отладить

@@ -2,8 +2,7 @@
 #define INC_DISPLAY_H_
 
 
-void displayInit();
-void transmitDisplayData();
+void displayInterruptHandler();
 
 
 #endif /* INC_DISPLAY_H_ */

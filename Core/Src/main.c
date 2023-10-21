@@ -94,9 +94,7 @@ int main(void)
   MX_TIM7_Init();
   MX_I2C1_Init();
   /* USER CODE BEGIN 2 */
-  //voltageInit();
-  //luxInit();
-  displayInit();
+
   /* USER CODE END 2 */
 
   /* Init scheduler */

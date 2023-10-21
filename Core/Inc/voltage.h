@@ -5,7 +5,4 @@
 extern volatile uint16_t voltage;
 
 
-void voltageInit();
-
-
 #endif /* INC_VOLTAGE_H_ */

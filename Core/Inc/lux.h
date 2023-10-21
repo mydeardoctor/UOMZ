@@ -5,7 +5,4 @@
 extern volatile uint16_t lux;
 
 
-void luxInit();
-
-
 #endif /* INC_LUX_H_ */
