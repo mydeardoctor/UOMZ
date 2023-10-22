@@ -90,7 +90,7 @@ void taskDisplayFunction(void *argument)
 		startTransmissionOfDisplayData();
 		waitForEndOfTransmission();
 
-		osDelayUntil(tick + pdMS_TO_TICKS(500));
+		osDelayUntil(tick + pdMS_TO_TICKS(100));
 	}
 }
 
@@ -149,7 +149,7 @@ static void convertLuxToDisplayData(uint16_t lux)
 								  DISPLAY2_THIRD_DIGIT);
 }
 
-//TODO
+//TODO uint32
 static void convertParameterToDisplayData(uint16_t parameter,
 								   	   	  uint8_t firstDigitIndex,
 										  uint8_t secondDigitIndex,

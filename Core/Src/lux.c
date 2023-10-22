@@ -2,7 +2,6 @@
 #include "cmsis_os.h"
 #include "i2c.h"
 
-//TODO Разделить низкоуровневую и высокоуровневую часть
 
 #define LTR_REGISTERS_SIZE 9u
 
@@ -178,7 +177,7 @@ void taskLuxFunction(void *argument)
 		uint16_t lux_ = calculateLux();
 		setLux(lux_);
 
-		osDelayUntil(tick + pdMS_TO_TICKS(500));
+		osDelayUntil(tick + pdMS_TO_TICKS(100));
 	}
 }
 
@@ -207,7 +206,16 @@ static void luxInit()
 		status = HAL_I2C_Mem_Write(&hi2c1,
 								   LTR_ADDRESS<<1,
 								   CONTR_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								   ltrRegisters + CONTR_INDEX, 2,
+								   ltrRegisters + CONTR_INDEX, 1,
+								   1000);
+	}while(status != HAL_OK);
+	status = HAL_ERROR;
+	do
+	{
+		status = HAL_I2C_Mem_Write(&hi2c1,
+								   LTR_ADDRESS<<1,
+								   MEAS_RATE_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								   ltrRegisters + MEAS_RATE_INDEX, 1,
 								   1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
