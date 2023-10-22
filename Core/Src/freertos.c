@@ -50,17 +50,17 @@ typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE BEGIN Variables */
 
 /* USER CODE END Variables */
-/* Definitions for taskDefault */
-osThreadId_t taskDefaultHandle;
-uint32_t taskDefaultBuffer[ 128 ];
-osStaticThreadDef_t taskDefaultControlBlock;
-const osThreadAttr_t taskDefault_attributes = {
-  .name = "taskDefault",
-  .cb_mem = &taskDefaultControlBlock,
-  .cb_size = sizeof(taskDefaultControlBlock),
-  .stack_mem = &taskDefaultBuffer[0],
-  .stack_size = sizeof(taskDefaultBuffer),
-  .priority = (osPriority_t) osPriorityLow,
+/* Definitions for taskDisplay */
+osThreadId_t taskDisplayHandle;
+uint32_t taskDisplayBuffer[ 128 ];
+osStaticThreadDef_t taskDisplayControlBlock;
+const osThreadAttr_t taskDisplay_attributes = {
+  .name = "taskDisplay",
+  .cb_mem = &taskDisplayControlBlock,
+  .cb_size = sizeof(taskDisplayControlBlock),
+  .stack_mem = &taskDisplayBuffer[0],
+  .stack_size = sizeof(taskDisplayBuffer),
+  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for taskLux */
 osThreadId_t taskLuxHandle;
@@ -73,18 +73,6 @@ const osThreadAttr_t taskLux_attributes = {
   .stack_mem = &taskLuxBuffer[0],
   .stack_size = sizeof(taskLuxBuffer),
   .priority = (osPriority_t) osPriorityNormal,
-};
-/* Definitions for taskDisplay */
-osThreadId_t taskDisplayHandle;
-uint32_t taskDisplayBuffer[ 128 ];
-osStaticThreadDef_t taskDisplayControlBlock;
-const osThreadAttr_t taskDisplay_attributes = {
-  .name = "taskDisplay",
-  .cb_mem = &taskDisplayControlBlock,
-  .cb_size = sizeof(taskDisplayControlBlock),
-  .stack_mem = &taskDisplayBuffer[0],
-  .stack_size = sizeof(taskDisplayBuffer),
-  .priority = (osPriority_t) osPriorityHigh,
 };
 /* Definitions for taskVoltage */
 osThreadId_t taskVoltageHandle;
@@ -144,10 +132,9 @@ const osSemaphoreAttr_t semaphoreLux_attributes = {
 
 /* USER CODE END FunctionPrototypes */
 
-void taskDefaultFunction(void *argument);
-extern void taskLuxFunction(void *argument);
-extern void taskDisplayFunction(void *argument);
-extern void taskVoltageFunction(void *argument);
+void taskDisplayFunction(void *argument);
+void taskLuxFunction(void *argument);
+void taskVoltageFunction(void *argument);
 
 void MX_FREERTOS_Init(void); /* (MISRA C 2004 rule 8.1) */
 
@@ -194,14 +181,11 @@ void MX_FREERTOS_Init(void) {
   /* USER CODE END RTOS_QUEUES */
 
   /* Create the thread(s) */
-  /* creation of taskDefault */
-  taskDefaultHandle = osThreadNew(taskDefaultFunction, NULL, &taskDefault_attributes);
+  /* creation of taskDisplay */
+  taskDisplayHandle = osThreadNew(taskDisplayFunction, NULL, &taskDisplay_attributes);
 
   /* creation of taskLux */
   taskLuxHandle = osThreadNew(taskLuxFunction, NULL, &taskLux_attributes);
-
-  /* creation of taskDisplay */
-  taskDisplayHandle = osThreadNew(taskDisplayFunction, NULL, &taskDisplay_attributes);
 
   /* creation of taskVoltage */
   taskVoltageHandle = osThreadNew(taskVoltageFunction, NULL, &taskVoltage_attributes);
@@ -216,22 +200,58 @@ void MX_FREERTOS_Init(void) {
 
 }
 
-/* USER CODE BEGIN Header_taskDefaultFunction */
+/* USER CODE BEGIN Header_taskDisplayFunction */
 /**
-  * @brief  Function implementing the taskDefault thread.
+  * @brief  Function implementing the taskDisplay thread.
   * @param  argument: Not used
   * @retval None
   */
-/* USER CODE END Header_taskDefaultFunction */
-void taskDefaultFunction(void *argument)
+/* USER CODE END Header_taskDisplayFunction */
+__weak void taskDisplayFunction(void *argument)
 {
-  /* USER CODE BEGIN taskDefaultFunction */
+  /* USER CODE BEGIN taskDisplayFunction */
   /* Infinite loop */
   for(;;)
   {
     osDelay(1);
   }
-  /* USER CODE END taskDefaultFunction */
+  /* USER CODE END taskDisplayFunction */
+}
+
+/* USER CODE BEGIN Header_taskLuxFunction */
+/**
+* @brief Function implementing the taskLux thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_taskLuxFunction */
+__weak void taskLuxFunction(void *argument)
+{
+  /* USER CODE BEGIN taskLuxFunction */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END taskLuxFunction */
+}
+
+/* USER CODE BEGIN Header_taskVoltageFunction */
+/**
+* @brief Function implementing the taskVoltage thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_taskVoltageFunction */
+__weak void taskVoltageFunction(void *argument)
+{
+  /* USER CODE BEGIN taskVoltageFunction */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(1);
+  }
+  /* USER CODE END taskVoltageFunction */
 }
 
 /* Private application code --------------------------------------------------*/

@@ -45,6 +45,16 @@ const uint8_t DISPLAY_DIGIT_6		= 0x81;
 const uint8_t DISPLAY_DIGIT_7		= 0xEC;
 const uint8_t DISPLAY_DIGIT_8		= 0x80;
 const uint8_t DISPLAY_DIGIT_9		= 0xC0;
+const uint8_t DISPLAY_DIGIT_0_DP	= 0x08;
+const uint8_t DISPLAY_DIGIT_1_DP	= 0x6E;
+const uint8_t DISPLAY_DIGIT_2_DP	= 0x14;
+const uint8_t DISPLAY_DIGIT_3_DP	= 0x44;
+const uint8_t DISPLAY_DIGIT_4_DP	= 0x62;
+const uint8_t DISPLAY_DIGIT_5_DP	= 0x41;
+const uint8_t DISPLAY_DIGIT_6_DP	= 0x01;
+const uint8_t DISPLAY_DIGIT_7_DP	= 0x6C;
+const uint8_t DISPLAY_DIGIT_8_DP	= 0x00;
+const uint8_t DISPLAY_DIGIT_9_DP	= 0x40;
 const uint8_t DISPLAY_FULL			= 0x0;
 //Значения данных для светодиодов.
 const uint8_t LEDS_OFF				= 0xFF;
@@ -60,7 +70,7 @@ static void convertParameterToDisplayData(uint16_t parameter,
 								   	   	  uint8_t firstDigitIndex,
 										  uint8_t secondDigitIndex,
 										  uint8_t thirdDigitIndex);
-static uint8_t convertDigitToDisplayData(uint8_t digit);
+static uint8_t convertDigitToDisplayData(uint8_t digit, bool dotPoint);
 static void startTransmissionOfDisplayData();
 static void waitForEndOfTransmission();
 
@@ -84,6 +94,7 @@ void taskDisplayFunction(void *argument)
 	}
 }
 
+//TODO проинициализировать пустотой
 static void displayInit()
 {
 	//Индикаторы не горят.
@@ -99,6 +110,9 @@ static void displayInit()
 	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
 
 	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
+
+	startTransmissionOfDisplayData();
+	waitForEndOfTransmission();
 }
 
 static uint16_t getVoltage()
@@ -135,74 +149,176 @@ static void convertLuxToDisplayData(uint16_t lux)
 								  DISPLAY2_THIRD_DIGIT);
 }
 
+//TODO
 static void convertParameterToDisplayData(uint16_t parameter,
 								   	   	  uint8_t firstDigitIndex,
 										  uint8_t secondDigitIndex,
 										  uint8_t thirdDigitIndex)
 {
-	if(parameter > 999)
-	{
-		parameter = 999;
-	}
+	uint8_t firstDigitDisplayData = DISPLAY_EMPTY;
+	uint8_t secondDigitDisplayData = DISPLAY_EMPTY;
+	uint8_t thirdDigitDisplayData = DISPLAY_EMPTY;
 
 	uint8_t firstDigit = 0;
 	uint8_t secondDigit = 0;
 	uint8_t thirdDigit = 0;
-	thirdDigit = parameter%10;
-	parameter = parameter/10;
-	secondDigit = parameter%10;
-	parameter = parameter/10;
-	firstDigit = parameter%10;
 
-	uint8_t firstDigitDisplayData = DISPLAY_EMPTY;
-	uint8_t secondDigitDisplayData = DISPLAY_EMPTY;
-	uint8_t thirdDigitDisplayData = DISPLAY_EMPTY;
-	firstDigitDisplayData = convertDigitToDisplayData(firstDigit);
-	secondDigitDisplayData = convertDigitToDisplayData(secondDigit);
-	thirdDigitDisplayData = convertDigitToDisplayData(thirdDigit);
+	if(parameter <= 999)
+	{
+		thirdDigit = parameter%10;
+		thirdDigitDisplayData
+		= convertDigitToDisplayData(thirdDigit, false);
+
+		if((parameter/10) != 0)
+		{
+			parameter = parameter/10;
+			secondDigit = parameter%10;
+			secondDigitDisplayData
+			= convertDigitToDisplayData(secondDigit, false);
+
+			if((parameter/10) != 0)
+			{
+				parameter = parameter/10;
+				firstDigit = parameter%10;
+				firstDigitDisplayData
+				= convertDigitToDisplayData(firstDigit, false);
+			}
+		}
+	}
+	else
+	{
+		uint16_t integerPart = parameter/1000;
+		uint16_t remainder = parameter%1000;
+
+		while((remainder/10) != 0)
+		{
+			remainder = remainder/10;
+		}
+		thirdDigit = remainder%10;
+		thirdDigitDisplayData
+			= convertDigitToDisplayData(thirdDigit, false);
+
+		secondDigit = integerPart%10;
+		secondDigitDisplayData
+				= convertDigitToDisplayData(secondDigit, true);
+
+		if((integerPart/10) != 0)
+		{
+			integerPart = integerPart/10;
+			firstDigit = integerPart%10;
+			firstDigitDisplayData
+			= convertDigitToDisplayData(firstDigit, false);
+		}
+	}
 
 	displayData[firstDigitIndex] = firstDigitDisplayData;
 	displayData[secondDigitIndex] = secondDigitDisplayData;
 	displayData[thirdDigitIndex] = thirdDigitDisplayData;
+
+
+//	if(parameter > 999)
+//	{
+//		parameter = 999;
+//	}
+//
+//	uint8_t firstDigit = 0;
+//	uint8_t secondDigit = 0;
+//	uint8_t thirdDigit = 0;
+//	thirdDigit = parameter%10;
+//	parameter = parameter/10;
+//	secondDigit = parameter%10;
+//	parameter = parameter/10;
+//	firstDigit = parameter%10;
+//
+//	uint8_t firstDigitDisplayData = DISPLAY_EMPTY;
+//	uint8_t secondDigitDisplayData = DISPLAY_EMPTY;
+//	uint8_t thirdDigitDisplayData = DISPLAY_EMPTY;
+//	firstDigitDisplayData = convertDigitToDisplayData(firstDigit);
+//	secondDigitDisplayData = convertDigitToDisplayData(secondDigit);
+//	thirdDigitDisplayData = convertDigitToDisplayData(thirdDigit);
+//
+//	displayData[firstDigitIndex] = firstDigitDisplayData;
+//	displayData[secondDigitIndex] = secondDigitDisplayData;
+//	displayData[thirdDigitIndex] = thirdDigitDisplayData;
 }
 
-static uint8_t convertDigitToDisplayData(uint8_t digit)
+static uint8_t convertDigitToDisplayData(uint8_t digit, bool dotPoint)
 {
 	uint8_t data = DISPLAY_EMPTY;
 
-	switch(digit)
+	if(!dotPoint)
 	{
-		case 0:
-			data = DISPLAY_DIGIT_0;
-			break;
-		case 1:
-			data = DISPLAY_DIGIT_1;
-			break;
-		case 2:
-			data = DISPLAY_DIGIT_2;
-			break;
-		case 3:
-			data = DISPLAY_DIGIT_3;
-			break;
-		case 4:
-			data = DISPLAY_DIGIT_4;
-			break;
-		case 5:
-			data = DISPLAY_DIGIT_5;
-			break;
-		case 6:
-			data = DISPLAY_DIGIT_6;
-			break;
-		case 7:
-			data = DISPLAY_DIGIT_7;
-			break;
-		case 8:
-			data = DISPLAY_DIGIT_8;
-			break;
-		case 9:
-		default:
-			data = DISPLAY_DIGIT_9;
-			break;
+		switch(digit)
+		{
+			case 0:
+			default:
+				data = DISPLAY_DIGIT_0;
+				break;
+			case 1:
+				data = DISPLAY_DIGIT_1;
+				break;
+			case 2:
+				data = DISPLAY_DIGIT_2;
+				break;
+			case 3:
+				data = DISPLAY_DIGIT_3;
+				break;
+			case 4:
+				data = DISPLAY_DIGIT_4;
+				break;
+			case 5:
+				data = DISPLAY_DIGIT_5;
+				break;
+			case 6:
+				data = DISPLAY_DIGIT_6;
+				break;
+			case 7:
+				data = DISPLAY_DIGIT_7;
+				break;
+			case 8:
+				data = DISPLAY_DIGIT_8;
+				break;
+			case 9:
+				data = DISPLAY_DIGIT_9;
+				break;
+		}
+	}
+	else
+	{
+		switch(digit)
+		{
+			case 0:
+			default:
+				data = DISPLAY_DIGIT_0_DP;
+				break;
+			case 1:
+				data = DISPLAY_DIGIT_1_DP;
+				break;
+			case 2:
+				data = DISPLAY_DIGIT_2_DP;
+				break;
+			case 3:
+				data = DISPLAY_DIGIT_3_DP;
+				break;
+			case 4:
+				data = DISPLAY_DIGIT_4_DP;
+				break;
+			case 5:
+				data = DISPLAY_DIGIT_5_DP;
+				break;
+			case 6:
+				data = DISPLAY_DIGIT_6_DP;
+				break;
+			case 7:
+				data = DISPLAY_DIGIT_7_DP;
+				break;
+			case 8:
+				data = DISPLAY_DIGIT_8_DP;
+				break;
+			case 9:
+				data = DISPLAY_DIGIT_9_DP;
+				break;
+		}
 	}
 
 	return data;
