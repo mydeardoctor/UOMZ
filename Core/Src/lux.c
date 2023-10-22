@@ -76,9 +76,10 @@ typedef enum
 
 
 volatile uint16_t lux = 999u;
+extern osMutexId_t mutexI2cHandle;
 extern osMutexId_t mutexLuxHandle;
 
-volatile uint8_t ltrRegisters[LTR_REGISTERS_SIZE];
+uint8_t ltrRegisters[LTR_REGISTERS_SIZE];
 const uint8_t CONTR_INDEX	   	 = 0u;
 const uint8_t MEAS_RATE_INDEX	 = 1u;
 const uint8_t PART_ID_INDEX		 = 2u;
@@ -158,6 +159,9 @@ static uint8_t getDataCh0High();
 static DataStatusOption getDataStatus();
 static DataGainRangeOption getDataGainRange();
 static DataValidOption getDataValid();
+static void waitForPowerUp();
+static void waitForWakeUp();
+static void readLuxData();
 static uint16_t calculateLux();
 static void setLux(uint16_t lux_);
 
@@ -170,6 +174,7 @@ void taskLuxFunction(void *argument)
 	{
 		uint32_t tick = osKernelGetTickCount();
 
+		readLuxData();
 		uint16_t lux_ = calculateLux();
 		setLux(lux_);
 
@@ -182,42 +187,32 @@ void taskLuxFunction(void *argument)
 //Начальные значения
 static void luxInit()
 {
-	setDefaultLtrRegisterValues();
+	waitForPowerUp();
 
-
-	//Wait 100 ms (min) - initial startup time
-	//I2C Command (Write) To enable sensor to Active Mode
-	//Wait 10 ms (max) - wakeup time from standby
-	//Считать id регистры
-
-	for(uint8_t i = 0; i < LTR_REGISTERS_SIZE; ++i)
+	HAL_StatusTypeDef status = HAL_ERROR;
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	do
 	{
-		ltrRegisters[i] = 0;
-	}
+		status = HAL_I2C_IsDeviceReady(&hi2c1, LTR_ADDRESS<<1, 1, 1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
 
+	setDefaultLtrRegisterValues();
+	setContrRegister(ACTIVE_MODE, SW_NO_RESET, GAIN_1X);
+	setMeasRateRegister(MEASUREMENT_RATE_100MS, INTEGRATION_TIME_100MS);
+	status = HAL_ERROR;
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	do
+	{
+		status = HAL_I2C_Mem_Write(&hi2c1,
+								   LTR_ADDRESS<<1,
+								   CONTR_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								   ltrRegisters + CONTR_INDEX, 2,
+								   1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
 
-
-
-	for(uint32_t i = 0; i < 500000; ++i){}
-	uint8_t bufToWrite = 0x19;
-	HAL_StatusTypeDef stat1 = HAL_I2C_Mem_Write(&hi2c1,
-												LTR_ADDRESS<<1,
-												CONTR_ADDRESS, 1,
-												&bufToWrite, 1,
-												5000);
-
-
-	for(uint32_t i = 0; i < 500000; ++i){}
-	uint8_t bufToRead[2];
-	bufToRead[0] = 0;
-	bufToRead[1] = 0;
-	HAL_StatusTypeDef stat2 = HAL_I2C_Mem_Read(&hi2c1,
-											   LTR_ADDRESS<<1,
-											   PART_ID_ADDRESS, 1,
-											   bufToRead, 2,
-											   5000);
-
-	for(uint32_t i = 0; i < 500000; ++i){}
+	waitForWakeUp();
 
 	//TODO имплементировать коллбеки. Нон блокинг через прерывания. В коллбеке выдача разрешения/семафора на дальнейшую работу. задачу-вызов определять по адресу буфера
 }
@@ -406,18 +401,127 @@ static DataValidOption getDataValid()
 	return dataValidOption;
 }
 
+static void waitForPowerUp()
+{
+	osDelay(pdMS_TO_TICKS(100));
+}
+
+static void waitForWakeUp()
+{
+	osDelay(pdMS_TO_TICKS(10));
+}
+
+static void readLuxData()
+{
+	HAL_StatusTypeDef status = HAL_ERROR;
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	do
+	{
+		status = HAL_I2C_Mem_Read(&hi2c1,
+								  LTR_ADDRESS<<1,
+								  DATA_CH1_0_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								  ltrRegisters + DATA_CH1_0_INDEX, 5,
+								  1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
+}
+
 static uint16_t calculateLux()
 {
-	static uint16_t lux_ = 999u;
-	uint16_t temp = lux_;
+	static uint16_t lux_ = 0;
 
-	lux_--;
-	if(lux_ > 999)
+
+	if(getDataValid() == DATA_IS_VALID)
 	{
-		lux_ = 999;
+		uint16_t channel0 = 0;
+		uint16_t channel0High = (uint16_t)getDataCh0High();
+		uint16_t channel0Low = (uint16_t)getDataCh0Low();
+		channel0 = (channel0High << 8) | channel0Low;
+
+		uint16_t channel1 = 0;
+		uint16_t channel1High = (uint16_t)getDataCh1High();
+		uint16_t channel1Low = (uint16_t)getDataCh1Low();
+		channel1 = (channel1High << 8) | channel1Low;
+
+		uint8_t gain = 1;
+		GainOption gainOption = getGain();
+		switch(gainOption)
+		{
+			case GAIN_1X:
+			default:
+				gain = 1;
+				break;
+			case GAIN_2X:
+				gain = 2;
+				break;
+			case GAIN_4X:
+				gain = 4;
+				break;
+			case GAIN_8X:
+				gain = 8;
+				break;
+			case GAIN_48X:
+				gain = 48;
+				break;
+			case GAIN_96X:
+				gain = 96;
+				break;
+		}
+
+		float integrationTime = 1.0f;
+		IntegrationTimeOption integrationTimeOption = getIntegrationTime();
+		switch(integrationTimeOption)
+		{
+			case INTEGRATION_TIME_100MS:
+			default:
+				integrationTime = 1.0f;
+				break;
+			case INTEGRATION_TIME_50MS:
+				integrationTime = 0.5f;
+				break;
+			case INTEGRATION_TIME_200MS:
+				integrationTime = 2.0f;
+				break;
+			case INTEGRATION_TIME_400MS:
+				integrationTime = 4.0f;
+				break;
+			case INTEGRATIONG_TIME_150MS:
+				integrationTime = 1.5f;
+				break;
+			case INTEGRATION_TIME_250MS:
+				integrationTime = 2.5f;
+				break;
+			case INTEGRATION_TIME_300MS:
+				integrationTime = 3.0f;
+				break;
+			case INTEGRATION_TIME_350MS:
+				integrationTime = 3.5f;
+				break;
+		}
+
+		float ratio = (float)channel1/((float)channel0 + (float)channel1);
+		if(ratio < 0.45f)
+		{
+			lux_ = (1.7743f*(float)channel0 + 1.1059*(float)channel1)
+					/(float)gain/integrationTime;
+		}
+		else if((ratio < 0.64f) && (ratio >= 0.45f))
+		{
+			lux_ = (4.2785f*(float)channel0 - 1.9548*(float)channel1)
+					/(float)gain/integrationTime;
+		}
+		else if((ratio < 0.85f) && (ratio >= 0.64f))
+		{
+			lux_ = (0.5926f*(float)channel0 + 0.1185*(float)channel1)
+					/(float)gain/integrationTime;
+		}
+		else
+		{
+			lux_ = 0;
+		}
 	}
 
-	return temp;
+	return lux_;
 }
 
 static void setLux(uint16_t lux_)
