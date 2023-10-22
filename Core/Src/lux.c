@@ -2,6 +2,7 @@
 #include "cmsis_os.h"
 #include "i2c.h"
 
+//TODO убрать лишние геттеры и сеттеры
 
 #define LTR_REGISTERS_SIZE 9u
 

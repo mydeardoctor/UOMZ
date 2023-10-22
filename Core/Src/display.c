@@ -64,9 +64,9 @@ const uint8_t MIX_LEDS_OFF			= 0x71;
 static void displayInit();
 static uint16_t getVoltage();
 static uint16_t getLux();
-static void convertVoltageToDisplayData(uint16_t voltage);
+static void convertVoltageToDisplayData(uint32_t voltage);
 static void convertLuxToDisplayData(uint16_t lux);
-static void convertParameterToDisplayData(uint16_t parameter,
+static void convertParameterToDisplayData(uint32_t parameter,
 								   	   	  uint8_t firstDigitIndex,
 										  uint8_t secondDigitIndex,
 										  uint8_t thirdDigitIndex);
@@ -83,7 +83,7 @@ void taskDisplayFunction(void *argument)
 	{
 		uint32_t tick = osKernelGetTickCount();
 
-		uint16_t voltage_ = getVoltage();
+		uint32_t voltage_ = getVoltage();
 		uint16_t lux_ = getLux();
 		convertVoltageToDisplayData(voltage_);
 		convertLuxToDisplayData(lux_);
@@ -133,7 +133,7 @@ static uint16_t getLux()
 	return lux_;
 }
 
-static void convertVoltageToDisplayData(uint16_t voltage)
+static void convertVoltageToDisplayData(uint32_t voltage)
 {
 	convertParameterToDisplayData(voltage,
 						   	   	  DISPLAY1_FIRST_DIGIT,
@@ -149,8 +149,7 @@ static void convertLuxToDisplayData(uint16_t lux)
 								  DISPLAY2_THIRD_DIGIT);
 }
 
-//TODO uint32
-static void convertParameterToDisplayData(uint16_t parameter,
+static void convertParameterToDisplayData(uint32_t parameter,
 								   	   	  uint8_t firstDigitIndex,
 										  uint8_t secondDigitIndex,
 										  uint8_t thirdDigitIndex)
@@ -187,8 +186,8 @@ static void convertParameterToDisplayData(uint16_t parameter,
 	}
 	else
 	{
-		uint16_t integerPart = parameter/1000;
-		uint16_t remainder = parameter%1000;
+		uint32_t integerPart = parameter/1000;
+		uint32_t remainder = parameter%1000;
 
 		while((remainder/10) != 0)
 		{
@@ -214,32 +213,6 @@ static void convertParameterToDisplayData(uint16_t parameter,
 	displayData[firstDigitIndex] = firstDigitDisplayData;
 	displayData[secondDigitIndex] = secondDigitDisplayData;
 	displayData[thirdDigitIndex] = thirdDigitDisplayData;
-
-
-//	if(parameter > 999)
-//	{
-//		parameter = 999;
-//	}
-//
-//	uint8_t firstDigit = 0;
-//	uint8_t secondDigit = 0;
-//	uint8_t thirdDigit = 0;
-//	thirdDigit = parameter%10;
-//	parameter = parameter/10;
-//	secondDigit = parameter%10;
-//	parameter = parameter/10;
-//	firstDigit = parameter%10;
-//
-//	uint8_t firstDigitDisplayData = DISPLAY_EMPTY;
-//	uint8_t secondDigitDisplayData = DISPLAY_EMPTY;
-//	uint8_t thirdDigitDisplayData = DISPLAY_EMPTY;
-//	firstDigitDisplayData = convertDigitToDisplayData(firstDigit);
-//	secondDigitDisplayData = convertDigitToDisplayData(secondDigit);
-//	thirdDigitDisplayData = convertDigitToDisplayData(thirdDigit);
-//
-//	displayData[firstDigitIndex] = firstDigitDisplayData;
-//	displayData[secondDigitIndex] = secondDigitDisplayData;
-//	displayData[thirdDigitIndex] = thirdDigitDisplayData;
 }
 
 static uint8_t convertDigitToDisplayData(uint8_t digit, bool dotPoint)
