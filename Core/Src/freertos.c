@@ -52,7 +52,7 @@ typedef StaticSemaphore_t osStaticSemaphoreDef_t;
 /* USER CODE END Variables */
 /* Definitions for taskDisplay */
 osThreadId_t taskDisplayHandle;
-uint32_t taskDisplayBuffer[ 128 ];
+uint32_t taskDisplayBuffer[ 64 ];
 osStaticThreadDef_t taskDisplayControlBlock;
 const osThreadAttr_t taskDisplay_attributes = {
   .name = "taskDisplay",
@@ -64,7 +64,7 @@ const osThreadAttr_t taskDisplay_attributes = {
 };
 /* Definitions for taskLux */
 osThreadId_t taskLuxHandle;
-uint32_t taskLuxBuffer[ 128 ];
+uint32_t taskLuxBuffer[ 64 ];
 osStaticThreadDef_t taskLuxControlBlock;
 const osThreadAttr_t taskLux_attributes = {
   .name = "taskLux",
@@ -76,7 +76,7 @@ const osThreadAttr_t taskLux_attributes = {
 };
 /* Definitions for taskVoltage */
 osThreadId_t taskVoltageHandle;
-uint32_t taskVoltageBuffer[ 128 ];
+uint32_t taskVoltageBuffer[ 64 ];
 osStaticThreadDef_t taskVoltageControlBlock;
 const osThreadAttr_t taskVoltage_attributes = {
   .name = "taskVoltage",
