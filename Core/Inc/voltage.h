@@ -2,7 +2,7 @@
 #define INC_VOLTAGE_H_
 
 
-extern volatile uint16_t voltage;
+uint32_t getVoltage();
 
 
 #endif /* INC_VOLTAGE_H_ */

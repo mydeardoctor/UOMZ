@@ -10,20 +10,17 @@
 
 typedef enum
 {
-	CLK_RISING_EDGE,
-	CLK_FALLING_EDGE,
-	STROBE_RISING_EDGE,
-	STROBE_FALLING_EDGE
-} TransmissionState;
+	DISPLAY_TX_STATE_CLK_RISING_EDGE,
+	DISPLAY_TX_STATE_CLK_FALLING_EDGE,
+	DISPLAY_TX_STATE_STROBE_RISING_EDGE,
+	DISPLAY_TX_STATE_STROBE_FALLING_EDGE
+} DisplayTxState;
 
 
-extern osMutexId_t mutexVoltageHandle;
-extern osMutexId_t mutexLuxHandle;
 extern osSemaphoreId_t semaphoreDisplayHandle;
+const uint32_t TASK_DISPLAY_PERIOD = 100u;
 
-//Массив данных для индикаторов и светодиодов.
 volatile uint8_t displayData[DISPLAY_DATA_SIZE];
-//Индексы в массиве данных.
 const uint8_t DISPLAY1_FIRST_DIGIT	= 6u;
 const uint8_t DISPLAY1_SECOND_DIGIT	= 7u;
 const uint8_t DISPLAY1_THIRD_DIGIT	= 5u;
@@ -33,7 +30,7 @@ const uint8_t DISPLAY2_THIRD_DIGIT	= 0u;
 const uint8_t LEDS_LEFT				= 3u;
 const uint8_t LEDS_RIGHT			= 8u;
 const uint8_t MIX_LEDS				= 4u;
-//Значения данных для индикаторов.
+
 const uint8_t DISPLAY_EMPTY			= 0xFF;
 const uint8_t DISPLAY_DIGIT_0		= 0x88;
 const uint8_t DISPLAY_DIGIT_1		= 0xEE;
@@ -55,21 +52,18 @@ const uint8_t DISPLAY_DIGIT_6_DP	= 0x01;
 const uint8_t DISPLAY_DIGIT_7_DP	= 0x6C;
 const uint8_t DISPLAY_DIGIT_8_DP	= 0x00;
 const uint8_t DISPLAY_DIGIT_9_DP	= 0x40;
-const uint8_t DISPLAY_FULL			= 0x0;
-//Значения данных для светодиодов.
+const uint8_t DISPLAY_FULL			= 0x00;
 const uint8_t LEDS_OFF				= 0xFF;
 const uint8_t MIX_LEDS_OFF			= 0x71;
 
 
 static void displayInit();
-static uint16_t getVoltage();
-static uint16_t getLux();
 static void convertVoltageToDisplayData(uint32_t voltage);
 static void convertLuxToDisplayData(uint16_t lux);
 static void convertParameterToDisplayData(uint32_t parameter,
-								   	   	  uint8_t firstDigitIndex,
-										  uint8_t secondDigitIndex,
-										  uint8_t thirdDigitIndex);
+								   	   	  uint8_t displayFirstDigitIndex,
+										  uint8_t displaySecondDigitIndex,
+										  uint8_t displayThirdDigitIndex);
 static uint8_t convertDigitToDisplayData(uint8_t digit, bool dotPoint);
 static void startTransmissionOfDisplayData();
 static void waitForEndOfTransmission();
@@ -90,47 +84,26 @@ void taskDisplayFunction(void *argument)
 		startTransmissionOfDisplayData();
 		waitForEndOfTransmission();
 
-		osDelayUntil(tick + pdMS_TO_TICKS(100));
+		osDelayUntil(tick + pdMS_TO_TICKS(TASK_DISPLAY_PERIOD));
 	}
 }
 
-//TODO проинициализировать пустотой
 static void displayInit()
 {
-	//Индикаторы не горят.
 	displayData[DISPLAY1_FIRST_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY1_SECOND_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY1_THIRD_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY2_FIRST_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY2_SECOND_DIGIT]	= DISPLAY_EMPTY;
 	displayData[DISPLAY2_THIRD_DIGIT]	= DISPLAY_EMPTY;
-	//Светодиоды не горят.
-	displayData[LEDS_LEFT]	= LEDS_OFF;
-	displayData[LEDS_RIGHT]	= LEDS_OFF;
-	displayData[MIX_LEDS]	= MIX_LEDS_OFF;
+	displayData[LEDS_LEFT]				= LEDS_OFF;
+	displayData[LEDS_RIGHT]				= LEDS_OFF;
+	displayData[MIX_LEDS]				= MIX_LEDS_OFF;
 
 	osSemaphoreAcquire(semaphoreDisplayHandle, osWaitForever);
 
 	startTransmissionOfDisplayData();
 	waitForEndOfTransmission();
-}
-
-static uint16_t getVoltage()
-{
-	uint16_t voltage_ = 0;
-	osMutexAcquire(mutexVoltageHandle, osWaitForever);
-	voltage_ = voltage;
-	osMutexRelease(mutexVoltageHandle);
-	return voltage_;
-}
-
-static uint16_t getLux()
-{
-	uint16_t lux_ = 0;
-	osMutexAcquire(mutexLuxHandle, osWaitForever);
-	lux_ = lux;
-	osMutexRelease(mutexLuxHandle);
-	return lux_;
 }
 
 static void convertVoltageToDisplayData(uint32_t voltage)
@@ -150,17 +123,17 @@ static void convertLuxToDisplayData(uint16_t lux)
 }
 
 static void convertParameterToDisplayData(uint32_t parameter,
-								   	   	  uint8_t firstDigitIndex,
-										  uint8_t secondDigitIndex,
-										  uint8_t thirdDigitIndex)
+								   	   	  uint8_t displayFirstDigitIndex,
+										  uint8_t displaySecondDigitIndex,
+										  uint8_t displayThirdDigitIndex)
 {
-	uint8_t firstDigitDisplayData = DISPLAY_EMPTY;
+	uint8_t firstDigitDisplayData  = DISPLAY_EMPTY;
 	uint8_t secondDigitDisplayData = DISPLAY_EMPTY;
-	uint8_t thirdDigitDisplayData = DISPLAY_EMPTY;
+	uint8_t thirdDigitDisplayData  = DISPLAY_EMPTY;
 
-	uint8_t firstDigit = 0;
+	uint8_t firstDigit  = 0;
 	uint8_t secondDigit = 0;
-	uint8_t thirdDigit = 0;
+	uint8_t thirdDigit  = 0;
 
 	if(parameter <= 999)
 	{
@@ -210,9 +183,9 @@ static void convertParameterToDisplayData(uint32_t parameter,
 		}
 	}
 
-	displayData[firstDigitIndex] = firstDigitDisplayData;
-	displayData[secondDigitIndex] = secondDigitDisplayData;
-	displayData[thirdDigitIndex] = thirdDigitDisplayData;
+	displayData[displayFirstDigitIndex]  = firstDigitDisplayData;
+	displayData[displaySecondDigitIndex] = secondDigitDisplayData;
+	displayData[displayThirdDigitIndex]  = thirdDigitDisplayData;
 }
 
 static uint8_t convertDigitToDisplayData(uint8_t digit, bool dotPoint)
@@ -309,15 +282,15 @@ static void waitForEndOfTransmission()
 
 void displayInterruptHandler()
 {
-	static TransmissionState transmissionState = CLK_RISING_EDGE;
+	static DisplayTxState displayTxState = DISPLAY_TX_STATE_CLK_RISING_EDGE;
 	static int8_t byteIndex = DISPLAY_DATA_SIZE - 1;
 	static uint8_t bitIndex = 0;
 
-	switch(transmissionState)
+	switch(displayTxState)
 	{
-		case CLK_RISING_EDGE:
+		case DISPLAY_TX_STATE_CLK_RISING_EDGE:
 		default:
-
+		{
 			uint8_t byteToTransmit = displayData[byteIndex];
 			uint8_t bitToTransmit = (byteToTransmit >> bitIndex) & 0x1;
 			if(bitToTransmit == 0)
@@ -332,13 +305,13 @@ void displayInterruptHandler()
 			}
 			HAL_GPIO_WritePin(RG_CLK_GPIO_Port, RG_CLK_Pin, GPIO_PIN_SET);
 
-			transmissionState = CLK_FALLING_EDGE;
+			displayTxState = DISPLAY_TX_STATE_CLK_FALLING_EDGE;
 
 			break;
+		}
 
-
-		case CLK_FALLING_EDGE:
-
+		case DISPLAY_TX_STATE_CLK_FALLING_EDGE:
+		{
 			HAL_GPIO_WritePin(RG_CLK_GPIO_Port, RG_CLK_Pin, GPIO_PIN_RESET);
 
 			++bitIndex;
@@ -349,36 +322,38 @@ void displayInterruptHandler()
 			}
 			if(byteIndex >= 0)
 			{
-				transmissionState = CLK_RISING_EDGE;
+				displayTxState = DISPLAY_TX_STATE_CLK_RISING_EDGE;
 			}
 			else
 			{
 				byteIndex = DISPLAY_DATA_SIZE - 1;
-				transmissionState = STROBE_RISING_EDGE;
+				displayTxState = DISPLAY_TX_STATE_STROBE_RISING_EDGE;
 			}
 
 			break;
+		}
 
-
-		case STROBE_RISING_EDGE:
-
+		case DISPLAY_TX_STATE_STROBE_RISING_EDGE:
+		{
 			HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin,
 							  GPIO_PIN_SET);
 
-			transmissionState = STROBE_FALLING_EDGE;
+			displayTxState = DISPLAY_TX_STATE_STROBE_FALLING_EDGE;
 
 			break;
+		}
 
-
-		case STROBE_FALLING_EDGE:
-
+		case DISPLAY_TX_STATE_STROBE_FALLING_EDGE:
+		{
 			HAL_GPIO_WritePin(RG_STROBE_GPIO_Port, RG_STROBE_Pin,
 							  GPIO_PIN_RESET);
 
+			displayTxState = DISPLAY_TX_STATE_CLK_RISING_EDGE;
+
 			HAL_TIM_Base_Stop_IT(&htim7);
-			transmissionState = CLK_RISING_EDGE;
 			osSemaphoreRelease(semaphoreDisplayHandle);
 
 			break;
+		}
 	}
 }

@@ -2,194 +2,169 @@
 #include "cmsis_os.h"
 #include "i2c.h"
 
-//TODO убрать лишние геттеры и сеттеры
 
-#define STC_REGISTERS_SIZE 20u
+#define STC_REGISTERS_SIZE 13u
 
-
-typedef enum
-{
-	AUTO_DETECT = 0x0,
-	EXTERNAL_CLOCK = 0x1
-} ExternalClockOption;
 
 typedef enum
 {
-	RESOLUTION_14_BITS = 0x0,
-	RESOLUTION_13_BITS = 0x1,
-	RESOLUTION_12_BITS = 0x2
-} ResolutionOption;
+	STC_CLOCK_INTERNAL = 0x0,
+	STC_CLOCK_EXTERNAL = 0x1
+} StcClock;
 
 typedef enum
 {
-	NO_CALIBRATION = 0x0,
-	CALIBRATION = 0x1
-} CalibrationOption;
+	STC_RESOLUTION_14_BITS = 0x0,
+	STC_RESOLUTION_13_BITS = 0x1,
+	STC_RESOLUTION_12_BITS = 0x2
+} StcResolution;
 
 typedef enum
 {
-	STANDBY_MODE   = 0x0,
-	OPERATING_MODE = 0x1
-} RunOption;
+	STC_CALIBRATION_OFF = 0x0,
+	STC_CALIBRATION_ON	= 0x1
+} StcCalibration;
 
 typedef enum
 {
-	IO0_LOW = 0x0,
-	IO0_HIGH = 0x1
-} IO0DataOption;
+	STC_MODE_STANDBY = 0x0,
+	STC_MODE_ACTIVE  = 0x1
+} StcMode;
 
 typedef enum
 {
-	GG_NO_RESET = 0x0,
-	GG_RESET = 0x1
-} GGResetOption;
+	STC_IO_DATA_LOW	 = 0x0,
+	STC_IO_DATA_HIGH = 0x1
+} StcIoData;
 
 typedef enum
 {
-	GG_CONVERSION_ONGOING = 0x0,
-	GG_END_OF_CONVERSION = 0x1
-} GgEocOption;
+	STC_GG_RESET_OFF = 0x0,
+	STC_GG_RESET_ON	 = 0x1
+} StcGgReset;
 
 typedef enum
 {
-	VTM_CONVERSION_ONGOING = 0x0,
-	VTM_END_OF_CONVERSION = 0x1
-} VtmEocOption;
+	STC_GG_CONVERSION_ONGOING  = 0x0,
+	STC_GG_CONVERSION_COMPLETE = 0x1
+} StcGgConversion;
 
 typedef enum
 {
-	POR_NO_RESET = 0x0,
-	POR_RESET	= 0x1
-} PorResetOption;
+	STC_VTM_CONVERSION_ONGOING  = 0x0,
+	STC_VTM_CONVERSION_COMPLETE = 0x1
+} StcVtmConversion;
+
+typedef enum
+{
+	STC_RESET_OFF = 0x0,
+	STC_RESET_ON  = 0x1
+} StcReset;
 
 
 volatile uint32_t voltage = 0u;
 extern osMutexId_t mutexI2cHandle;
 extern osMutexId_t mutexVoltageHandle;
+const uint32_t TASK_VOLTAGE_PERIOD = 4000u;
 
 uint8_t stcRegisters[STC_REGISTERS_SIZE];
-const uint8_t MODE_INDEX = 0u;
-const uint8_t CTRL_INDEX = 1u;
-const uint8_t CHARGE_LOW_INDEX = 2u;
-const uint8_t CHARGE_HIGH_INDEX = 3u;
-const uint8_t COUNTER_LOW_INDEX = 4u;
-const uint8_t COUNTER_HIGH_INDEX = 5u;
-const uint8_t CURRENT_LOW_INDEX = 6u;
-const uint8_t CURRENT_HIGH_INDEX = 7u;
-const uint8_t VOLTAGE_LOW_INDEX = 8u;
-const uint8_t VOLTAGE_HIGH_INDEX = 9u;
-const uint8_t TEMPERATURE_LOW_INDEX = 10u;
-const uint8_t TEMPERATURE_HIGH_INDEX = 11;
-const uint8_t ID0_INDEX = 12u;
-const uint8_t ID1_INDEX = 13u;
-const uint8_t ID2_INDEX = 14u;
-const uint8_t ID3_INDEX = 15u;
-const uint8_t ID4_INDEX = 16u;
-const uint8_t ID5_INDEX = 17u;
-const uint8_t ID6_INDEX = 18u;
-const uint8_t ID7_INDEX = 19u;
+const uint8_t STC_MODE_INDEX			 = 0u;
+const uint8_t STC_CONTROL_INDEX			 = 1u;
+const uint8_t STC_CHARGE_LOW_INDEX		 = 2u;
+const uint8_t STC_CHARGE_HIGH_INDEX		 = 3u;
+const uint8_t STC_COUNTER_LOW_INDEX		 = 4u;
+const uint8_t STC_COUNTER_HIGH_INDEX	 = 5u;
+const uint8_t STC_CURRENT_LOW_INDEX		 = 6u;
+const uint8_t STC_CURRENT_HIGH_INDEX	 = 7u;
+const uint8_t STC_VOLTAGE_LOW_INDEX		 = 8u;
+const uint8_t STC_VOLTAGE_HIGH_INDEX	 = 9u;
+const uint8_t STC_TEMPERATURE_LOW_INDEX	 = 10u;
+const uint8_t STC_TEMPERATURE_HIGH_INDEX = 11u;
+const uint8_t STC_PART_TYPE_ID_INDEX	 = 12u;
 
 const uint8_t STC_ADDRESS = 0x70;
-const uint8_t MODE_ADDRESS = 0x00;
-const uint8_t CTRL_ADDRESS = 0x01;
-const uint8_t CHARGE_LOW_ADDRESS = 0x02;
-const uint8_t CHARGE_HIGH_ADDRESSS = 0x03;
-const uint8_t COUNTER_LOW_ADDRESS = 0x04;
-const uint8_t COUNTER_HIGH_ADDRESS = 0x05;
-const uint8_t CURRENT_LOW_ADDRESS = 0x06;
-const uint8_t CURRENT_HIGH_ADDRESS = 0x07;
-const uint8_t VOLTAGE_LOW_ADDRESS = 0x08;
-const uint8_t VOLTAGE_HIGH_ADDRESS = 0x09;
-const uint8_t TEMPERATURE_LOW_ADDRESS = 0xA;
-const uint8_t TEMPERATURE_HIGH_ADDRESS = 0xB;
-const uint8_t ID0_ADDRESS = 0x18;
-const uint8_t ID1_ADDRESS = 0x19;
-const uint8_t ID2_ADDRESS = 0x1A;
-const uint8_t ID3_ADDRESS = 0x1B;
-const uint8_t ID4_ADDRESS = 0x1C;
-const uint8_t ID5_ADDRESS = 0x1D;
-const uint8_t ID6_ADDRESS = 0x1E;
-const uint8_t ID7_ADDRESS = 0x1F;
+const uint8_t STC_MODE_ADDRESS			   = 0x00;
+const uint8_t STC_CONTROL_ADDRESS		   = 0x01;
+const uint8_t STC_CHARGE_LOW_ADDRESS	   = 0x02;
+const uint8_t STC_CHARGE_HIGH_ADDRESSS	   = 0x03;
+const uint8_t STC_COUNTER_LOW_ADDRESS	   = 0x04;
+const uint8_t STC_COUNTER_HIGH_ADDRESS	   = 0x05;
+const uint8_t STC_CURRENT_LOW_ADDRESS	   = 0x06;
+const uint8_t STC_CURRENT_HIGH_ADDRESS	   = 0x07;
+const uint8_t STC_VOLTAGE_LOW_ADDRESS	   = 0x08;
+const uint8_t STC_VOLTAGE_HIGH_ADDRESS	   = 0x09;
+const uint8_t STC_TEMPERATURE_LOW_ADDRESS  = 0x0A;
+const uint8_t STC_TEMPERATURE_HIGH_ADDRESS = 0x0B;
+const uint8_t STC_PART_TYPE_ID_ADDRESS	   = 0x18;
 
 const uint8_t PART_TYPE_ID = 0x10;
 
-const uint8_t EXTERNAL_CLOCK_OFFSET = 0u;
-const uint8_t RESOLUTION_OFFSET = 1u;
-const uint8_t CALIBRATION_OFFSET = 3u;
-const uint8_t RUN_OFFSET = 4u;
-const uint8_t IO0_DATA_OFFSET = 0u;
-const uint8_t GG_RESET_OFFSET = 1u;
-const uint8_t GG_EOC_OFFSET = 2u;
-const uint8_t VTM_EOC_OFFSET = 3u;
-const uint8_t POR_RESET_OFFSET = 4u;
+const uint8_t STC_CLOCK_OFFSET			= 0u;
+const uint8_t STC_RESOLUTION_OFFSET		= 1u;
+const uint8_t STC_CALIBRATION_OFFSET	= 3u;
+const uint8_t STC_MODE_OFFSET			= 4u;
+const uint8_t STC_IO_DATA_OFFSET		= 0u;
+const uint8_t STC_GG_RESET_OFFSET		= 1u;
+const uint8_t STC_GG_CONVERSION_OFFSET	= 2u;
+const uint8_t STC_VTM_CONVERSION_OFFSET = 3u;
+const uint8_t STC_RESET_OFFSET			= 4u;
 
-const uint8_t EXTERNAL_CLOCK_MASK = 0x01;
-const uint8_t RESOLUTION_MASK = 0x06;
-const uint8_t CALIBRATION_MASK = 0x08;
-const uint8_t RUN_MASK = 0x10;
-const uint8_t IO0_DATA_MASK = 0x01;
-const uint8_t GG_RESET_MASK = 0x01;
-const uint8_t GG_EOC_MASK = 0x04;
-const uint8_t VTM_EOC_MASK = 0x08;
-const uint8_t POR_RESET_MASK = 0x10;
+const uint8_t STC_CLOCK_MASK		  = 0x01;
+const uint8_t STC_RESOLUTION_MASK	  = 0x06;
+const uint8_t STC_CALIBRATION_MASK	  = 0x08;
+const uint8_t STC_MODE_MASK			  = 0x10;
+const uint8_t STC_IO_DATA_MASK		  = 0x01;
+const uint8_t STC_GG_RESET_MASK		  = 0x02;
+const uint8_t STC_GG_CONVERSION_MASK  = 0x04;
+const uint8_t STC_VTM_CONVERSION_MASK = 0x08;
+const uint8_t STC_RESET_MASK		  = 0x10;
 
 
 static void voltageInit();
+
 static void setDefaultStcRegisterValues();
-static void setModeRegister(ExternalClockOption externalClockOption,
-							ResolutionOption resolutionOption,
-							CalibrationOption calibrationOption,
-							RunOption runOption);
-static void setCtrlRegister(IO0DataOption io0DataOption,
-							GGResetOption ggResetOption,
-							GgEocOption ggEocOption,
-							VtmEocOption vtmEocOption,
-							PorResetOption porResetOption);
-static void setChargeLowRegister(uint8_t chargeLow);
-static void setChargeHighRegister(uint8_t chargeHigh);
-static void setCounterLowRegister(uint8_t counterLow);
-static void setCounterHighRegister(uint8_t counterHigh);
-static void setCurrentLowRegister(uint8_t currentLow);
-static void setCurrentHighRegister(uint8_t currentHigh);
-static void setVoltageLowRegister(uint8_t voltageLow);
-static void setVoltageHighRegister(uint8_t voltageHigh);
-static void setTemperatureLowRegister(uint8_t temperatureLow);
-static void setTemperatureHighRegister(uint8_t temperatureHigh);
-static void setId0Register(uint8_t io0);
-static void setId1Register(uint8_t io1);
-static void setId2Register(uint8_t io2);
-static void setId3Register(uint8_t io3);
-static void setId4Register(uint8_t io4);
-static void setId5Register(uint8_t io5);
-static void setId6Register(uint8_t io6);
-static void setId7Register(uint8_t io7);
-static ExternalClockOption getExternalClock();
-static ResolutionOption getResolution();
-static CalibrationOption getCalibration();
-static RunOption getRun();
-static IO0DataOption getIo0Data();
-static GGResetOption getGgReset();
-static GgEocOption getGgEoc();
-static VtmEocOption getVtmOption();
-static PorResetOption getPorReset();
-static uint8_t getChargeLow();
-static uint8_t getChargeHigh();
-static uint8_t getCounterLow();
-static uint8_t getCounterHigh();
-static uint8_t getCurrentLow();
-static uint8_t getCurrentHigh();
-static uint8_t getVoltageLow();
-static uint8_t getVoltageHigh();
-static uint8_t getTemperatureLow();
-static uint8_t getTemperatureHigh();
-static uint8_t getId0();
-static uint8_t getId1();
-static uint8_t getId2();
-static uint8_t getId3();
-static uint8_t getId4();
-static uint8_t getId5();
-static uint8_t getId6();
-static uint8_t getId7();
+static void setStcMode(StcClock stcClock,
+					   StcResolution stcResolution,
+					   StcCalibration stcCalibration,
+					   StcMode stcMode);
+static void setStcControl(StcIoData stcIoData,
+						  StcGgReset stcGgReset,
+						  StcGgConversion stcGgConversion,
+						  StcVtmConversion stcVtmConversion,
+						  StcReset stcReset);
+static void setStcChargeLow(uint8_t stcChargeLow);
+static void setStcChargeHigh(uint8_t stcChargeHigh);
+static void setStcCounterLow(uint8_t stcCounterLow);
+static void setStcCounterHigh(uint8_t stcCounterHigh);
+static void setStcCurrentLow(uint8_t stcCurrentLow);
+static void setStcCurrentHigh(uint8_t stcCurrentHigh);
+static void setStcVoltageLow(uint8_t stcVoltageLow);
+static void setStcVoltageHigh(uint8_t stcVoltageHigh);
+static void setStcTemperatureLow(uint8_t stcTemperatureLow);
+static void setStcTemperatureHigh(uint8_t stcTemperatureHigh);
+static void setStcPartTypeId(uint8_t stcPartTypeId);
+
+static StcClock getStcClock();
+static StcResolution getStcResolution();
+static StcCalibration getStcCalibration();
+static StcMode getStcMode();
+static StcIoData getStcIoData();
+static StcGgReset getStcGgReset();
+static StcGgConversion getStcGgConversion();
+static StcVtmConversion getStcVtmConversion();
+static StcReset getStcReset();
+static uint8_t getStcChargeLow();
+static uint8_t getStcChargeHigh();
+static uint8_t getStcCounterLow();
+static uint8_t getStcCounterHigh();
+static uint8_t getStcCurrentLow();
+static uint8_t getStcCurrentHigh();
+static uint8_t getStcVoltageLow();
+static uint8_t getStcVoltageHigh();
+static uint8_t getStcTemperatureLow();
+static uint8_t getStcTemperatureHigh();
+static uint8_t getStcPartTypeId();
+
 static void readVoltageData();
 static uint32_t calculateVoltage();
 static void setVoltage(uint32_t voltage_);
@@ -207,14 +182,14 @@ void taskVoltageFunction(void *argument)
 		uint32_t voltage_ = calculateVoltage();
 		setVoltage(voltage_);
 
-		osDelayUntil(tick + pdMS_TO_TICKS(4000));
+		osDelayUntil(tick + pdMS_TO_TICKS(TASK_VOLTAGE_PERIOD));
 	}
 }
 
 static void voltageInit()
 {
-	HAL_StatusTypeDef status = HAL_ERROR;
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
 	do
 	{
 		status = HAL_I2C_IsDeviceReady(&hi2c1, STC_ADDRESS << 1, 1, 1000);
@@ -222,348 +197,267 @@ static void voltageInit()
 	osMutexRelease(mutexI2cHandle);
 
 	setDefaultStcRegisterValues();
-	setModeRegister(AUTO_DETECT,
-					RESOLUTION_14_BITS,
-					NO_CALIBRATION,
-					OPERATING_MODE);
-	status = HAL_ERROR;
+	setStcMode(STC_CLOCK_INTERNAL,
+			   STC_RESOLUTION_14_BITS,
+			   STC_CALIBRATION_OFF,
+			   STC_MODE_ACTIVE);
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	status = HAL_ERROR;
 	do
 	{
 		status = HAL_I2C_Mem_Write(&hi2c1,
 								   STC_ADDRESS << 1,
-								   MODE_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								   stcRegisters + MODE_INDEX, 1,
+								   STC_MODE_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								   stcRegisters + STC_MODE_INDEX, 1,
 								   1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
-
-	//TODO имплементировать коллбеки. Нон блокинг через прерывания. В коллбеке выдача разрешения/семафора на дальнейшую работу. задачу-вызов определять по адресу буфера
 }
 
 static void setDefaultStcRegisterValues()
 {
-	setModeRegister(AUTO_DETECT,
-					RESOLUTION_14_BITS,
-					NO_CALIBRATION,
-					STANDBY_MODE);
-	setCtrlRegister(IO0_HIGH,
-					GG_NO_RESET,
-					GG_END_OF_CONVERSION,
-					VTM_END_OF_CONVERSION,
-					POR_NO_RESET);
-	setChargeLowRegister(0);
-	setChargeHighRegister(0);
-	setCounterLowRegister(0);
-	setCounterHighRegister(0);
-	setCurrentLowRegister(0);
-	setCurrentHighRegister(0);
-	setVoltageLowRegister(0);
-	setVoltageHighRegister(0);
-	setTemperatureLowRegister(0);
-	setTemperatureHighRegister(0);
-	setId0Register(PART_TYPE_ID);
-	setId1Register(0);
-	setId2Register(0);
-	setId3Register(0);
-	setId4Register(0);
-	setId5Register(0);
-	setId6Register(0);
-	setId7Register(0);
+	setStcMode(STC_CLOCK_INTERNAL,
+			   STC_RESOLUTION_14_BITS,
+			   STC_CALIBRATION_OFF,
+			   STC_MODE_STANDBY);
+	setStcControl(STC_IO_DATA_HIGH,
+				  STC_GG_RESET_OFF,
+				  STC_GG_CONVERSION_COMPLETE,
+				  STC_VTM_CONVERSION_COMPLETE,
+				  STC_RESET_OFF);
+	setStcChargeLow(0);
+	setStcChargeHigh(0);
+	setStcCounterLow(0);
+	setStcCounterHigh(0);
+	setStcCurrentLow(0);
+	setStcCurrentHigh(0);
+	setStcVoltageLow(0);
+	setStcVoltageHigh(0);
+	setStcTemperatureLow(0);
+	setStcTemperatureHigh(0);
+	setStcPartTypeId(PART_TYPE_ID);
 }
 
-static void setModeRegister(ExternalClockOption externalClockOption,
-							ResolutionOption resolutionOption,
-							CalibrationOption calibrationOption,
-							RunOption runOption)
+static void setStcMode(StcClock stcClock,
+					   StcResolution stcResolution,
+					   StcCalibration stcCalibration,
+					   StcMode stcMode)
 {
 	uint8_t reg = 0;
-	reg |= (externalClockOption << EXTERNAL_CLOCK_OFFSET);
-	reg |= (resolutionOption << RESOLUTION_OFFSET);
-	reg |= (calibrationOption << CALIBRATION_OFFSET);
-	reg |= (runOption << RUN_OFFSET);
-	stcRegisters[MODE_INDEX] = reg;
+	reg |= (stcClock << STC_CLOCK_OFFSET);
+	reg |= (stcResolution << STC_RESOLUTION_OFFSET);
+	reg |= (stcCalibration << STC_CALIBRATION_OFFSET);
+	reg |= (stcMode << STC_MODE_OFFSET);
+	stcRegisters[STC_MODE_INDEX] = reg;
 }
 
-static void setCtrlRegister(IO0DataOption io0DataOption,
-							GGResetOption ggResetOption,
-							GgEocOption ggEocOption,
-							VtmEocOption vtmEocOption,
-							PorResetOption porResetOption)
+static void setStcControl(StcIoData stcIoData,
+						  StcGgReset stcGgReset,
+						  StcGgConversion stcGgConversion,
+						  StcVtmConversion stcVtmConversion,
+						  StcReset stcReset)
 {
 	uint8_t reg = 0;
-	reg |= (io0DataOption << IO0_DATA_OFFSET);
-	reg |= (ggResetOption << GG_RESET_OFFSET);
-	reg |= (ggEocOption << GG_EOC_OFFSET);
-	reg |= (vtmEocOption << VTM_EOC_OFFSET);
-	reg |= (porResetOption << POR_RESET_OFFSET);
-	stcRegisters[CTRL_INDEX] = reg;
+	reg |= (stcIoData << STC_IO_DATA_OFFSET);
+	reg |= (stcGgReset << STC_GG_RESET_OFFSET);
+	reg |= (stcGgConversion << STC_GG_CONVERSION_OFFSET);
+	reg |= (stcVtmConversion << STC_VTM_CONVERSION_OFFSET);
+	reg |= (stcReset << STC_RESET_OFFSET);
+	stcRegisters[STC_CONTROL_INDEX] = reg;
 }
 
-static void setChargeLowRegister(uint8_t chargeLow)
+static void setStcChargeLow(uint8_t stcChargeLow)
 {
-	stcRegisters[CHARGE_LOW_INDEX] = chargeLow;
+	stcRegisters[STC_CHARGE_LOW_INDEX] = stcChargeLow;
 }
 
-static void setChargeHighRegister(uint8_t chargeHigh)
+static void setStcChargeHigh(uint8_t stcChargeHigh)
 {
-	stcRegisters[CHARGE_HIGH_INDEX] = chargeHigh;
+	stcRegisters[STC_CHARGE_HIGH_INDEX] = stcChargeHigh;
 }
 
-static void setCounterLowRegister(uint8_t counterLow)
+static void setStcCounterLow(uint8_t stcCounterLow)
 {
-	stcRegisters[COUNTER_LOW_INDEX] = counterLow;
+	stcRegisters[STC_COUNTER_LOW_INDEX] = stcCounterLow;
 }
 
-static void setCounterHighRegister(uint8_t counterHigh)
+static void setStcCounterHigh(uint8_t stcCounterHigh)
 {
-	stcRegisters[COUNTER_HIGH_INDEX] = counterHigh;
+	stcRegisters[STC_COUNTER_HIGH_INDEX] = stcCounterHigh;
 }
 
-static void setCurrentLowRegister(uint8_t currentLow)
+static void setStcCurrentLow(uint8_t stcCurrentLow)
 {
-	stcRegisters[CURRENT_LOW_INDEX] = currentLow;
+	stcRegisters[STC_CURRENT_LOW_INDEX] = stcCurrentLow;
 }
 
-static void setCurrentHighRegister(uint8_t currentHigh)
+static void setStcCurrentHigh(uint8_t stcCurrentHigh)
 {
-	stcRegisters[CURRENT_HIGH_INDEX] = currentHigh;
+	stcRegisters[STC_CURRENT_HIGH_INDEX] = stcCurrentHigh;
 }
 
-static void setVoltageLowRegister(uint8_t voltageLow)
+static void setStcVoltageLow(uint8_t stcVoltageLow)
 {
-	stcRegisters[VOLTAGE_LOW_INDEX] = voltageLow;
+	stcRegisters[STC_VOLTAGE_LOW_INDEX] = stcVoltageLow;
 }
 
-static void setVoltageHighRegister(uint8_t voltageHigh)
+static void setStcVoltageHigh(uint8_t stcVoltageHigh)
 {
-	stcRegisters[VOLTAGE_HIGH_INDEX] = voltageHigh;
+	stcRegisters[STC_VOLTAGE_HIGH_INDEX] = stcVoltageHigh;
 }
 
-static void setTemperatureLowRegister(uint8_t temperatureLow)
+static void setStcTemperatureLow(uint8_t stcTemperatureLow)
 {
-	stcRegisters[TEMPERATURE_LOW_INDEX] = temperatureLow;
+	stcRegisters[STC_TEMPERATURE_LOW_INDEX] = stcTemperatureLow;
 }
 
-static void setTemperatureHighRegister(uint8_t temperatureHigh)
+static void setStcTemperatureHigh(uint8_t stcTemperatureHigh)
 {
-	stcRegisters[TEMPERATURE_HIGH_INDEX] = temperatureHigh;
+	stcRegisters[STC_TEMPERATURE_HIGH_INDEX] = stcTemperatureHigh;
 }
 
-static void setId0Register(uint8_t io0)
+static void setStcPartTypeId(uint8_t stcPartTypeId)
 {
-	stcRegisters[ID0_INDEX] = io0;
+	stcRegisters[STC_PART_TYPE_ID_INDEX] = stcPartTypeId;
 }
 
-static void setId1Register(uint8_t io1)
+static StcClock getStcClock()
 {
-	stcRegisters[ID1_INDEX] = io1;
+	uint8_t reg = stcRegisters[STC_MODE_INDEX];
+	StcClock stcClock = (StcClock)
+			((reg & STC_CLOCK_MASK) >> STC_CLOCK_OFFSET);
+	return stcClock;
 }
 
-static void setId2Register(uint8_t io2)
+static StcResolution getStcResolution()
 {
-	stcRegisters[ID2_INDEX] = io2;
+	uint8_t reg = stcRegisters[STC_MODE_INDEX];
+	StcResolution stcResolution = (StcResolution)
+			((reg & STC_RESOLUTION_MASK) >> STC_RESOLUTION_OFFSET);
+	return stcResolution;
 }
 
-static void setId3Register(uint8_t io3)
+static StcCalibration getStcCalibration()
 {
-	stcRegisters[ID3_INDEX] = io3;
+	uint8_t reg = stcRegisters[STC_MODE_INDEX];
+	StcCalibration stcCalibration = (StcCalibration)
+			((reg & STC_CALIBRATION_MASK) >> STC_CALIBRATION_OFFSET);
+	return stcCalibration;
 }
 
-static void setId4Register(uint8_t io4)
+static StcMode getStcMode()
 {
-	stcRegisters[ID4_INDEX] = io4;
+	uint8_t reg = stcRegisters[STC_MODE_INDEX];
+	StcMode stcMode = (StcMode)
+			((reg & STC_MODE_MASK) >> STC_MODE_OFFSET);
+	return stcMode;
 }
 
-static void setId5Register(uint8_t io5)
+static StcIoData getStcIoData()
 {
-	stcRegisters[ID5_INDEX] = io5;
+	uint8_t reg = stcRegisters[STC_CONTROL_INDEX];
+	StcIoData stcIoData = (StcIoData)
+			((reg & STC_IO_DATA_MASK) >> STC_IO_DATA_OFFSET);
+	return stcIoData;
 }
 
-static void setId6Register(uint8_t io6)
+static StcGgReset getStcGgReset()
 {
-	stcRegisters[ID6_INDEX] = io6;
+	uint8_t reg = stcRegisters[STC_CONTROL_INDEX];
+	StcGgReset stcGgReset = (StcGgReset)
+			((reg & STC_GG_RESET_MASK) >> STC_GG_RESET_OFFSET);
+	return stcGgReset;
 }
 
-static void setId7Register(uint8_t io7)
+static StcGgConversion getStcGgConversion()
 {
-	stcRegisters[ID7_INDEX] = io7;
+	uint8_t reg = stcRegisters[STC_CONTROL_INDEX];
+	StcGgConversion stcGgConversion = (StcGgConversion)
+			((reg & STC_GG_CONVERSION_MASK) >> STC_GG_CONVERSION_OFFSET);
+	return stcGgConversion;
 }
 
-//TODO обобщить геттеры
-
-static ExternalClockOption getExternalClock()
+static StcVtmConversion getStcVtmConversion()
 {
-	uint8_t reg = stcRegisters[MODE_INDEX];
-	ExternalClockOption externalClockOption = (ExternalClockOption)
-			((reg & EXTERNAL_CLOCK_MASK) >> EXTERNAL_CLOCK_OFFSET);
-	return externalClockOption;
+	uint8_t reg = stcRegisters[STC_CONTROL_INDEX];
+	StcVtmConversion stcVtmConversion = (StcVtmConversion)
+			((reg & STC_VTM_CONVERSION_MASK) >> STC_VTM_CONVERSION_OFFSET);
+	return stcVtmConversion;
 }
 
-static ResolutionOption getResolution()
+static StcReset getStcReset()
 {
-	uint8_t reg = stcRegisters[MODE_INDEX];
-	ResolutionOption resolutionOption = (ResolutionOption)
-			((reg & RESOLUTION_MASK) >> RESOLUTION_OFFSET);
-	return resolutionOption;
+	uint8_t reg = stcRegisters[STC_CONTROL_INDEX];
+	StcReset stcReset = (StcReset)
+			((reg & STC_RESET_MASK) >> STC_RESET_OFFSET);
+	return stcReset;
 }
 
-static CalibrationOption getCalibration()
+static uint8_t getStcChargeLow()
 {
-	uint8_t reg = stcRegisters[MODE_INDEX];
-	CalibrationOption calibrationOption = (CalibrationOption)
-			((reg & CALIBRATION_MASK) >> CALIBRATION_OFFSET);
-	return calibrationOption;
+	return stcRegisters[STC_CHARGE_LOW_INDEX];
 }
 
-static RunOption getRun()
+static uint8_t getStcChargeHigh()
 {
-	uint8_t reg = stcRegisters[MODE_INDEX];
-	RunOption runOption = (RunOption)
-			((reg & RUN_MASK) >> RUN_OFFSET);
-	return runOption;
+	return stcRegisters[STC_CHARGE_HIGH_INDEX];
 }
 
-static IO0DataOption getIo0Data()
+static uint8_t getStcCounterLow()
 {
-	uint8_t reg = stcRegisters[CTRL_INDEX];
-	IO0DataOption io0DataOption = (IO0DataOption)
-			((reg & IO0_DATA_MASK) >> IO0_DATA_OFFSET);
-	return io0DataOption;
+	return stcRegisters[STC_COUNTER_LOW_INDEX];
 }
 
-static GGResetOption getGgReset()
+static uint8_t getStcCounterHigh()
 {
-	uint8_t reg = stcRegisters[CTRL_INDEX];
-	GGResetOption ggResetOption = (GGResetOption)
-			((reg & GG_RESET_MASK) >> GG_RESET_OFFSET);
-	return ggResetOption;
+	return stcRegisters[STC_COUNTER_HIGH_INDEX];
 }
 
-static GgEocOption getGgEoc()
+static uint8_t getStcCurrentLow()
 {
-	uint8_t reg = stcRegisters[CTRL_INDEX];
-	GgEocOption ggEocOption = (GgEocOption)
-			((reg & GG_EOC_MASK) >> GG_EOC_OFFSET);
-	return ggEocOption;
+	return stcRegisters[STC_CURRENT_LOW_INDEX];
 }
 
-static VtmEocOption getVtmOption()
+static uint8_t getStcCurrentHigh()
 {
-	uint8_t reg = stcRegisters[CTRL_INDEX];
-	VtmEocOption vtmEocOption = (VtmEocOption)
-			((reg & VTM_EOC_MASK) >> VTM_EOC_OFFSET);
-	return vtmEocOption;
+	return stcRegisters[STC_CURRENT_HIGH_INDEX];
 }
 
-static PorResetOption getPorReset()
+static uint8_t getStcVoltageLow()
 {
-	uint8_t reg = stcRegisters[CTRL_INDEX];
-	PorResetOption porResetOption = (PorResetOption)
-			((reg & POR_RESET_MASK) >> POR_RESET_OFFSET);
-	return porResetOption;
+	return stcRegisters[STC_VOLTAGE_LOW_INDEX];
 }
 
-static uint8_t getChargeLow()
+static uint8_t getStcVoltageHigh()
 {
-	return stcRegisters[CHARGE_LOW_INDEX];
+	return stcRegisters[STC_VOLTAGE_HIGH_INDEX];
 }
 
-static uint8_t getChargeHigh()
+static uint8_t getStcTemperatureLow()
 {
-	return stcRegisters[CHARGE_HIGH_INDEX];
+	return stcRegisters[STC_TEMPERATURE_LOW_INDEX];
 }
 
-static uint8_t getCounterLow()
+static uint8_t getStcTemperatureHigh()
 {
-	return stcRegisters[COUNTER_LOW_INDEX];
+	return stcRegisters[STC_TEMPERATURE_HIGH_INDEX];
 }
 
-static uint8_t getCounterHigh()
+static uint8_t getStcPartTypeId()
 {
-	return stcRegisters[COUNTER_HIGH_INDEX];
-}
-
-static uint8_t getCurrentLow()
-{
-	return stcRegisters[CURRENT_LOW_INDEX];
-}
-
-static uint8_t getCurrentHigh()
-{
-	return stcRegisters[CURRENT_HIGH_INDEX];
-}
-
-static uint8_t getVoltageLow()
-{
-	return stcRegisters[VOLTAGE_LOW_INDEX];
-}
-
-static uint8_t getVoltageHigh()
-{
-	return stcRegisters[VOLTAGE_HIGH_INDEX];
-}
-
-static uint8_t getTemperatureLow()
-{
-	return stcRegisters[TEMPERATURE_LOW_INDEX];
-}
-
-static uint8_t getTemperatureHigh()
-{
-	return stcRegisters[TEMPERATURE_HIGH_INDEX];
-}
-
-static uint8_t getId0()
-{
-	return stcRegisters[ID0_INDEX];
-}
-
-static uint8_t getId1()
-{
-	return stcRegisters[ID1_INDEX];
-}
-
-static uint8_t getId2()
-{
-	return stcRegisters[ID2_INDEX];
-}
-
-static uint8_t getId3()
-{
-	return stcRegisters[ID3_INDEX];
-}
-
-static uint8_t getId4()
-{
-	return stcRegisters[ID4_INDEX];
-}
-
-static uint8_t getId5()
-{
-	return stcRegisters[ID5_INDEX];
-}
-
-static uint8_t getId6()
-{
-	return stcRegisters[ID6_INDEX];
-}
-
-static uint8_t getId7()
-{
-	return stcRegisters[ID7_INDEX];
+	return stcRegisters[STC_PART_TYPE_ID_INDEX];
 }
 
 static void readVoltageData()
 {
-	HAL_StatusTypeDef status = HAL_ERROR;
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
 	do
 	{
 		status = HAL_I2C_Mem_Read(&hi2c1,
 								  STC_ADDRESS << 1,
-								  VOLTAGE_LOW_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								  stcRegisters + VOLTAGE_LOW_INDEX, 2,
+								  STC_VOLTAGE_LOW_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								  stcRegisters + STC_VOLTAGE_LOW_INDEX, 2,
 								  1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
@@ -573,8 +467,8 @@ static uint32_t calculateVoltage()
 {
 	static uint32_t voltage_ = 0;
 
-	uint8_t voltageHigh = stcRegisters[VOLTAGE_HIGH_INDEX];
-	uint8_t voltageLow = stcRegisters[VOLTAGE_LOW_INDEX];
+	uint8_t voltageHigh = getStcVoltageHigh();
+	uint8_t voltageLow = getStcVoltageLow();
 	uint16_t voltageData = 0;
 	voltageData = ((uint16_t)voltageHigh << 8) | (uint16_t)voltageLow;
 	voltage_ = (float)voltageData*2.44f;
@@ -587,4 +481,13 @@ static void setVoltage(uint32_t voltage_)
 	osMutexAcquire(mutexVoltageHandle, osWaitForever);
 	voltage = voltage_;
 	osMutexRelease(mutexVoltageHandle);
+}
+
+uint32_t getVoltage()
+{
+	uint32_t voltage_ = 0;
+	osMutexAcquire(mutexVoltageHandle, osWaitForever);
+	voltage_ = voltage;
+	osMutexRelease(mutexVoltageHandle);
+	return voltage_;
 }

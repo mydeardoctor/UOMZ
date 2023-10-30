@@ -2,165 +2,168 @@
 #include "cmsis_os.h"
 #include "i2c.h"
 
-//TODO убрать лишние геттеры и сеттеры
 
 #define LTR_REGISTERS_SIZE 9u
 
 
-//TODO Проверить
 typedef enum
 {
-	STAND_BY_MODE = 0x0,
-	ACTIVE_MODE	  = 0x1
-} ModeOption;
-
-typedef enum
-{
-	SW_NO_RESET = 0x0,
-	SW_RESET	= 0x1
-} SwResetOption;
+	LTR_MODE_STANDBY = 0x0,
+	LTR_MODE_ACTIVE	 = 0x1
+} LtrMode;
 
 typedef enum
 {
-	GAIN_1X  = 0x0,
-	GAIN_2X  = 0x1,
-	GAIN_4X  = 0x2,
-	GAIN_8X  = 0x3,
-	GAIN_48X = 0x6,
-	GAIN_96X = 0x7
-} GainOption;
+	LTR_RESET_OFF = 0x0,
+	LTR_RESET_ON  = 0x1
+} LtrReset;
 
 typedef enum
 {
-	MEASUREMENT_RATE_50MS	= 0x0,
-	MEASUREMENT_RATE_100MS	= 0x1,
-	MEASUREMENT_RATE_200MS	= 0x2,
-	MEASUREMENT_RATE_500MS	= 0x3,
-	MEASUREMENT_RATE_1000MS = 0x4,
-	MEASUREMENT_RATE_2000MS = 0x5
-} MeasurementRateOption;
+	LTR_GAIN_1X  = 0x0,
+	LTR_GAIN_2X  = 0x1,
+	LTR_GAIN_4X  = 0x2,
+	LTR_GAIN_8X  = 0x3,
+	LTR_GAIN_48X = 0x6,
+	LTR_GAIN_96X = 0x7
+} LtrGain;
 
 typedef enum
 {
-	INTEGRATION_TIME_100MS	= 0x0,
-	INTEGRATION_TIME_50MS	= 0x1,
-	INTEGRATION_TIME_200MS	= 0x2,
-	INTEGRATION_TIME_400MS	= 0x3,
-	INTEGRATIONG_TIME_150MS = 0x4,
-	INTEGRATION_TIME_250MS	= 0x5,
-	INTEGRATION_TIME_300MS	= 0x6,
-	INTEGRATION_TIME_350MS	= 0x7
-} IntegrationTimeOption;
+	LTR_MEASUREMENT_RATE_50MS	= 0x0,
+	LTR_MEASUREMENT_RATE_100MS	= 0x1,
+	LTR_MEASUREMENT_RATE_200MS	= 0x2,
+	LTR_MEASUREMENT_RATE_500MS	= 0x3,
+	LTR_MEASUREMENT_RATE_1000MS = 0x4,
+	LTR_MEASUREMENT_RATE_2000MS = 0x5
+} LtrMeasurementRate;
 
 typedef enum
 {
-	OLD_DATA = 0x0,
-	NEW_DATA = 0x1
-} DataStatusOption;
+	LTR_INTEGRATION_TIME_100MS	= 0x0,
+	LTR_INTEGRATION_TIME_50MS	= 0x1,
+	LTR_INTEGRATION_TIME_200MS	= 0x2,
+	LTR_INTEGRATION_TIME_400MS	= 0x3,
+	LTR_INTEGRATIONG_TIME_150MS = 0x4,
+	LTR_INTEGRATION_TIME_250MS	= 0x5,
+	LTR_INTEGRATION_TIME_300MS	= 0x6,
+	LTR_INTEGRATION_TIME_350MS	= 0x7
+} LtrIntegrationTime;
 
 typedef enum
 {
-	MEASURED_IN_GAIN_1X	 = 0x0,
-	MEASURED_IN_GAIN_2X	 = 0x1,
-	MEASURED_IN_GAIN_4X	 = 0x2,
-	MEASURED_IN_GAIN_8X	 = 0x3,
-	MEASURED_IN_GAIN_48X = 0x6,
-	MEASURED_IN_GAIN_96X = 0x7
-} DataGainRangeOption;
+	LTR_DATA_STATUS_OLD = 0x0,
+	LTR_DATA_STATUS_NEW = 0x1
+} LtrDataStatus;
 
 typedef enum
 {
-	DATA_IS_VALID	= 0x0,
-	DATA_IS_INVALID = 0x1
-} DataValidOption;
+	LTR_DATA_GAIN_RANGE_1X	= 0x0,
+	LTR_DATA_GAIN_RANGE_2X	= 0x1,
+	LTR_DATA_GAIN_RANGE_4X	= 0x2,
+	LTR_DATA_GAIN_RANGE_8X	= 0x3,
+	LTR_DATA_GAIN_RANGE_48X = 0x6,
+	LTR_DATA_GAIN_RANGE_96X = 0x7
+} LtrDataGainRange;
+
+typedef enum
+{
+	LTR_DATA_VALIDITY_VALID	  = 0x0,
+	LTR_DATA_VALIDITY_INVALID = 0x1
+} LtrDataValidity;
 
 
-volatile uint16_t lux = 999u;
+volatile uint16_t lux = 0u;
 extern osMutexId_t mutexI2cHandle;
 extern osMutexId_t mutexLuxHandle;
+const uint32_t TASK_LUX_PERIOD = 100u;
 
 uint8_t ltrRegisters[LTR_REGISTERS_SIZE];
-const uint8_t CONTR_INDEX	   	 = 0u;
-const uint8_t MEAS_RATE_INDEX	 = 1u;
-const uint8_t PART_ID_INDEX		 = 2u;
-const uint8_t MANUFAC_ID_INDEX	 = 3u;
-const uint8_t DATA_CH1_0_INDEX	 = 4u;
-const uint8_t DATA_CH1_1_INDEX	 = 5u;
-const uint8_t DATA_CH0_0_INDEX	 = 6u;
-const uint8_t DATA_CH0_1_INDEX	 = 7u;
-const uint8_t STATUS_INDEX	   	 = 8u;
+const uint8_t LTR_CONTROL_INDEX			 = 0u;
+const uint8_t LTR_MEASUREMENT_RATE_INDEX = 1u;
+const uint8_t LTR_PART_ID_INDEX			 = 2u;
+const uint8_t LTR_MANUFACTURER_ID_INDEX	 = 3u;
+const uint8_t LTR_CHANNEL1_LOW_INDEX	 = 4u;
+const uint8_t LTR_CHANNEL1_HIGH_INDEX	 = 5u;
+const uint8_t LTR_CHANNEL0_LOW_INDEX	 = 6u;
+const uint8_t LTR_CHANNEL0_HIGH_INDEX	 = 7u;
+const uint8_t LTR_STATUS_INDEX	   	 	 = 8u;
 
-const uint8_t LTR_ADDRESS		 = 0x29;
-const uint8_t CONTR_ADDRESS		 = 0x80;
-const uint8_t MEAS_RATE_ADDRESS	 = 0x85;
-const uint8_t PART_ID_ADDRESS	 = 0x86;
-const uint8_t MANUFAC_ID_ADDRESS = 0x87;
-const uint8_t DATA_CH1_0_ADDRESS = 0x88;
-const uint8_t DATA_CH1_1_ADDRESS = 0x89;
-const uint8_t DATA_CH0_0_ADDRESS = 0x8A;
-const uint8_t DATA_CH0_1_ADDRESS = 0x8B;
-const uint8_t STATUS_ADDRESS	 = 0x8C;
+const uint8_t LTR_ADDRESS		 		   = 0x29;
+const uint8_t LTR_CONTROL_ADDRESS		   = 0x80;
+const uint8_t LTR_MEASUREMENT_RATE_ADDRESS = 0x85;
+const uint8_t LTR_PART_ID_ADDRESS	 	   = 0x86;
+const uint8_t LTR_MANUFACTURER_ID_ADDRESS  = 0x87;
+const uint8_t LTR_CHANNEL1_LOW_ADDRESS	   = 0x88;
+const uint8_t LTR_CHANNEL1_HIGH_ADDRESS	   = 0x89;
+const uint8_t LTR_CHANNEL0_LOW_ADDRESS	   = 0x8A;
+const uint8_t LTR_CHANNEL0_HIGH_ADDRESS	   = 0x8B;
+const uint8_t LTR_STATUS_ADDRESS		   = 0x8C;
 
-const uint8_t PART_NUMBER_ID	 = 0x0A;
-const uint8_t REVISION_ID		 = 0x0;
-const uint8_t MANUFACTURER_ID	 = 0x05;
+const uint8_t LTR_PART_NUMBER_ID  = 0x0A;
+const uint8_t LTR_REVISION_ID	  = 0x00;
+const uint8_t LTR_MANUFACTURER_ID = 0x05;
 
-const uint8_t MODE_OFFSET			  = 0u;
-const uint8_t SW_RESET_OFFSET		  = 1u;
-const uint8_t GAIN_OFFSET			  = 2u;
-const uint8_t MEASUREMENT_RATE_OFFSET = 0u;
-const uint8_t INTEGRATION_TIME_OFFSET = 3u;
-const uint8_t REVISION_ID_OFFSET	  = 0u;
-const uint8_t PART_NUMBER_ID_OFFSET	  = 4u;
-const uint8_t DATA_STATUS_OFFSET	  = 2u;
-const uint8_t DATA_GAIN_RANGE_OFFSET  = 4u;
-const uint8_t DATA_VALID_OFFSET		  = 7u;
+const uint8_t LTR_MODE_OFFSET			  = 0u;
+const uint8_t LTR_RESET_OFFSET		  	  = 1u;
+const uint8_t LTR_GAIN_OFFSET			  = 2u;
+const uint8_t LTR_MEASUREMENT_RATE_OFFSET = 0u;
+const uint8_t LTR_INTEGRATION_TIME_OFFSET = 3u;
+const uint8_t LTR_REVISION_ID_OFFSET	  = 0u;
+const uint8_t LTR_PART_NUMBER_ID_OFFSET	  = 4u;
+const uint8_t LTR_DATA_STATUS_OFFSET	  = 2u;
+const uint8_t LTR_DATA_GAIN_RANGE_OFFSET  = 4u;
+const uint8_t LTR_DATA_VALIDITY_OFFSET	  = 7u;
 
-const uint8_t MODE_MASK				  = 0x01;
-const uint8_t SW_RESET_MASK			  = 0x02;
-const uint8_t GAIN_MASK				  = 0x1C;
-const uint8_t MEASUREMENT_RATE_MASK	  = 0x07;
-const uint8_t INTEGRATION_TIME_MASK	  = 0x38;
-const uint8_t REVISION_ID_MASK		  = 0x0F;
-const uint8_t PART_NUMBER_ID_MASK	  = 0xF0;
-const uint8_t DATA_STATUS_MASK		  = 0x04;
-const uint8_t DATA_GAIN_RANGE_MASK	  = 0x70;
-const uint8_t DATA_VALID_MASK		  = 0x80;
+const uint8_t LTR_MODE_MASK				  = 0x01;
+const uint8_t LTR_RESET_MASK			  = 0x02;
+const uint8_t LTR_GAIN_MASK				  = 0x1C;
+const uint8_t LTR_MEASUREMENT_RATE_MASK	  = 0x07;
+const uint8_t LTR_INTEGRATION_TIME_MASK	  = 0x38;
+const uint8_t LTR_REVISION_ID_MASK		  = 0x0F;
+const uint8_t LTR_PART_NUMBER_ID_MASK	  = 0xF0;
+const uint8_t LTR_DATA_STATUS_MASK		  = 0x04;
+const uint8_t LTR_DATA_GAIN_RANGE_MASK	  = 0x70;
+const uint8_t LTR_DATA_VALIDITY_MASK	  = 0x80;
+
+const uint32_t LTR_TIME_TO_POWER_UP = 100u;
+const uint32_t LTR_TIME_TO_WAKE_UP	= 10u;
 
 
 static void luxInit();
+
 static void setDefaultLtrRegisterValues();
-static void setContrRegister(ModeOption modeOption,
-							 SwResetOption swResetOption,
-							 GainOption gainOption);
-static void setMeasRateRegister(MeasurementRateOption measurementRateOption,
-								IntegrationTimeOption integrationTimeOption);
-static void setPartIdRegister();
-static void setManufacIdRegister();
-static void setDataCh1LowRegister(uint8_t dataCh1Low);
-static void setDataCh1HighRegister(uint8_t dataCh1High);
-static void setDataCh0LowRegister(uint8_t dataCh0Low);
-static void setDataCh0HighRegister(uint8_t dataCh0High);
-static void setStatusRegister(DataStatusOption dataStatusOption,
-							  DataGainRangeOption dataGainRangeOption,
-							  DataValidOption dataValidOption);
-static ModeOption getMode();
-static SwResetOption getSwReset();
-static GainOption getGain();
-static MeasurementRateOption getMeasurementRate();
-static IntegrationTimeOption getIntegrationTime();
-static uint8_t getRevisionId();
-static uint8_t getPartNumberId();
-static uint8_t getManufacturerId();
-static uint8_t getDataCh1Low();
-static uint8_t getDataCh1High();
-static uint8_t getDataCh0Low();
-static uint8_t getDataCh0High();
-static DataStatusOption getDataStatus();
-static DataGainRangeOption getDataGainRange();
-static DataValidOption getDataValid();
-static void waitForPowerUp();
-static void waitForWakeUp();
+static void setLtrControl(LtrMode ltrMode,
+						  LtrReset ltrReset,
+						  LtrGain ltrGain);
+static void setLtrMeasurementRate(LtrMeasurementRate ltrMeasurementRate,
+								  LtrIntegrationTime ltrIntegrationTime);
+static void setLtrPartId();
+static void setLtrManufacturerId();
+static void setLtrChannel1Low(uint8_t channel1Low);
+static void setLtrChannel1High(uint8_t channel1High);
+static void setLtrChannel0Low(uint8_t channel0Low);
+static void setLtrChannel0High(uint8_t channel0High);
+static void setLtrStatus(LtrDataStatus ltrDataStatus,
+						 LtrDataGainRange ltrDataGainRange,
+						 LtrDataValidity ltrDataValidity);
+
+static LtrMode getLtrMode();
+static LtrReset getLtrReset();
+static LtrGain getLtrGain();
+static LtrMeasurementRate getLtrMeasurementRate();
+static LtrIntegrationTime getLtrIntegrationTime();
+static uint8_t getLtrRevisionId();
+static uint8_t getLtrPartNumberId();
+static uint8_t getLtrManufacturerId();
+static uint8_t getLtrChannel1Low();
+static uint8_t getLtrChannel1High();
+static uint8_t getLtrChannel0Low();
+static uint8_t getLtrChannel0High();
+static LtrDataStatus getLtrDataStatus();
+static LtrDataGainRange getLtrDataGainRange();
+static LtrDataValidity getLtrDataValidity();
+
 static void readLuxData();
 static uint16_t calculateLux();
 static void setLux(uint16_t lux_);
@@ -178,259 +181,253 @@ void taskLuxFunction(void *argument)
 		uint16_t lux_ = calculateLux();
 		setLux(lux_);
 
-		osDelayUntil(tick + pdMS_TO_TICKS(100));
+		osDelayUntil(tick + pdMS_TO_TICKS(TASK_LUX_PERIOD));
 	}
 }
 
-//TODO Спрятать низкоуровневые дедали в функции.
-//Функции инициализации каждого регистра
-//Начальные значения
 static void luxInit()
 {
-	waitForPowerUp();
+	osDelay(pdMS_TO_TICKS(LTR_TIME_TO_POWER_UP));
 
-	HAL_StatusTypeDef status = HAL_ERROR;
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
 	do
 	{
-		status = HAL_I2C_IsDeviceReady(&hi2c1, LTR_ADDRESS<<1, 1, 1000);
+		status = HAL_I2C_IsDeviceReady(&hi2c1, LTR_ADDRESS << 1, 1, 1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
 
 	setDefaultLtrRegisterValues();
-	setContrRegister(ACTIVE_MODE, SW_NO_RESET, GAIN_1X);
-	setMeasRateRegister(MEASUREMENT_RATE_100MS, INTEGRATION_TIME_100MS);
-	status = HAL_ERROR;
+	setLtrControl(LTR_MODE_ACTIVE,
+				  LTR_RESET_OFF,
+				  LTR_GAIN_1X);
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
-	do
-	{
-		status = HAL_I2C_Mem_Write(&hi2c1,
-								   LTR_ADDRESS<<1,
-								   CONTR_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								   ltrRegisters + CONTR_INDEX, 1,
-								   1000);
-	}while(status != HAL_OK);
 	status = HAL_ERROR;
 	do
 	{
-		status = HAL_I2C_Mem_Write(&hi2c1,
-								   LTR_ADDRESS<<1,
-								   MEAS_RATE_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								   ltrRegisters + MEAS_RATE_INDEX, 1,
-								   1000);
+		status = HAL_I2C_Mem_Write
+							(&hi2c1,
+							 LTR_ADDRESS << 1,
+							 LTR_CONTROL_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+							 ltrRegisters + LTR_CONTROL_INDEX, 1,
+							 1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
 
-	waitForWakeUp();
+	setLtrMeasurementRate(LTR_MEASUREMENT_RATE_100MS,
+						  LTR_INTEGRATION_TIME_100MS);
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	status = HAL_ERROR;
+	do
+	{
+		status = HAL_I2C_Mem_Write
+							(&hi2c1,
+							LTR_ADDRESS << 1,
+							LTR_MEASUREMENT_RATE_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+							ltrRegisters + LTR_MEASUREMENT_RATE_INDEX, 1,
+							1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
 
-	//TODO имплементировать коллбеки. Нон блокинг через прерывания. В коллбеке выдача разрешения/семафора на дальнейшую работу. задачу-вызов определять по адресу буфера
+	osDelay(pdMS_TO_TICKS(LTR_TIME_TO_WAKE_UP));
 }
 
-//TODO отладить
 static void setDefaultLtrRegisterValues()
 {
-	setContrRegister(STAND_BY_MODE, SW_NO_RESET, GAIN_1X);
-	setMeasRateRegister(MEASUREMENT_RATE_500MS, INTEGRATION_TIME_100MS);
-	setPartIdRegister();
-	setManufacIdRegister();
-	setDataCh1LowRegister(0);
-	setDataCh1HighRegister(0);
-	setDataCh0LowRegister(0);
-	setDataCh0HighRegister(0);
-	setStatusRegister(OLD_DATA, MEASURED_IN_GAIN_1X, DATA_IS_VALID);
+	setLtrControl(LTR_MODE_STANDBY,
+				  LTR_RESET_OFF,
+				  LTR_GAIN_1X);
+	setLtrMeasurementRate(LTR_MEASUREMENT_RATE_500MS,
+						  LTR_INTEGRATION_TIME_100MS);
+	setLtrPartId();
+	setLtrManufacturerId();
+	setLtrChannel1Low(0);
+	setLtrChannel1High(0);
+	setLtrChannel0Low(0);
+	setLtrChannel0High(0);
+	setLtrStatus(LTR_DATA_STATUS_OLD,
+				 LTR_DATA_GAIN_RANGE_1X,
+				 LTR_DATA_VALIDITY_VALID);
 }
 
-static void setContrRegister(ModeOption modeOption,
-							 SwResetOption swResetOption,
-							 GainOption gainOption)
+static void setLtrControl(LtrMode ltrMode,
+						  LtrReset ltrReset,
+						  LtrGain ltrGain)
 {
 	uint8_t reg = 0;
-	reg |= (modeOption << MODE_OFFSET);
-	reg |= (swResetOption << SW_RESET_OFFSET);
-	reg |= (gainOption << GAIN_OFFSET);
-	ltrRegisters[CONTR_INDEX] = reg;
+	reg |= (ltrMode << LTR_MODE_OFFSET);
+	reg |= (ltrReset << LTR_RESET_OFFSET);
+	reg |= (ltrGain << LTR_GAIN_OFFSET);
+	ltrRegisters[LTR_CONTROL_INDEX] = reg;
 }
 
-static void setMeasRateRegister(MeasurementRateOption measurementRateOption,
-								IntegrationTimeOption integrationTimeOption)
+static void setLtrMeasurementRate(LtrMeasurementRate ltrMeasurementRate,
+								  LtrIntegrationTime ltrIntegrationTime)
 {
 	uint8_t reg = 0;
-	reg |= (measurementRateOption << MEASUREMENT_RATE_OFFSET);
-	reg |= (integrationTimeOption << INTEGRATION_TIME_OFFSET);
-	ltrRegisters[MEAS_RATE_INDEX] = reg;
+	reg |= (ltrMeasurementRate << LTR_MEASUREMENT_RATE_OFFSET);
+	reg |= (ltrIntegrationTime << LTR_INTEGRATION_TIME_OFFSET);
+	ltrRegisters[LTR_MEASUREMENT_RATE_INDEX] = reg;
 }
 
-static void setPartIdRegister()
+static void setLtrPartId()
 {
 	uint8_t reg = 0;
-	reg |= (REVISION_ID << REVISION_ID_OFFSET);
-	reg |= (PART_NUMBER_ID << PART_NUMBER_ID_OFFSET);
-	ltrRegisters[PART_ID_INDEX] = reg;
+	reg |= (LTR_REVISION_ID << LTR_REVISION_ID_OFFSET);
+	reg |= (LTR_PART_NUMBER_ID << LTR_PART_NUMBER_ID_OFFSET);
+	ltrRegisters[LTR_PART_ID_INDEX] = reg;
 }
 
-static void setManufacIdRegister()
+static void setLtrManufacturerId()
 {
-	ltrRegisters[MANUFAC_ID_INDEX] = MANUFACTURER_ID;
+	ltrRegisters[LTR_MANUFACTURER_ID_INDEX] = LTR_MANUFACTURER_ID;
 }
 
-static void setDataCh1LowRegister(uint8_t dataCh1Low)
+static void setLtrChannel1Low(uint8_t channel1Low)
 {
-	ltrRegisters[DATA_CH1_0_INDEX] = dataCh1Low;
+	ltrRegisters[LTR_CHANNEL1_LOW_INDEX] = channel1Low;
 }
 
-static void setDataCh1HighRegister(uint8_t dataCh1High)
+static void setLtrChannel1High(uint8_t channel1High)
 {
-	ltrRegisters[DATA_CH1_1_INDEX] = dataCh1High;
+	ltrRegisters[LTR_CHANNEL1_HIGH_INDEX] = channel1High;
 }
 
-static void setDataCh0LowRegister(uint8_t dataCh0Low)
+static void setLtrChannel0Low(uint8_t channel0Low)
 {
-	ltrRegisters[DATA_CH0_0_INDEX] = dataCh0Low;
+	ltrRegisters[LTR_CHANNEL0_LOW_INDEX] = channel0Low;
 }
 
-static void setDataCh0HighRegister(uint8_t dataCh0High)
+static void setLtrChannel0High(uint8_t channel0High)
 {
-	ltrRegisters[DATA_CH0_1_INDEX] = dataCh0High;
+	ltrRegisters[LTR_CHANNEL0_HIGH_INDEX] = channel0High;
 }
 
-static void setStatusRegister(DataStatusOption dataStatusOption,
-							  DataGainRangeOption dataGainRangeOption,
-							  DataValidOption dataValidOption)
+static void setLtrStatus(LtrDataStatus ltrDataStatus,
+					     LtrDataGainRange ltrDataGainRange,
+					     LtrDataValidity ltrDataValidity)
 {
 	uint8_t reg = 0;
-	reg |= (dataStatusOption << DATA_STATUS_OFFSET);
-	reg |= (dataGainRangeOption << DATA_GAIN_RANGE_OFFSET);
-	reg |= (dataValidOption << DATA_VALID_OFFSET);
-	ltrRegisters[STATUS_INDEX] = reg;
+	reg |= (ltrDataStatus << LTR_DATA_STATUS_OFFSET);
+	reg |= (ltrDataGainRange << LTR_DATA_GAIN_RANGE_OFFSET);
+	reg |= (ltrDataValidity << LTR_DATA_VALIDITY_OFFSET);
+	ltrRegisters[LTR_STATUS_INDEX] = reg;
 }
 
-static ModeOption getMode()
+static LtrMode getLtrMode()
 {
-	uint8_t reg = ltrRegisters[CONTR_INDEX];
-	ModeOption modeOption = (ModeOption)((reg & MODE_MASK) >> MODE_OFFSET);
-	return modeOption;
+	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
+	LtrMode ltrMode = (LtrMode)((reg & LTR_MODE_MASK) >> LTR_MODE_OFFSET);
+	return ltrMode;
 }
 
-static SwResetOption getSwReset()
+static LtrReset getLtrReset()
 {
-	uint8_t reg = ltrRegisters[CONTR_INDEX];
-	SwResetOption swResetOption = (SwResetOption)
-			((reg & SW_RESET_MASK) >> SW_RESET_OFFSET);
-	return swResetOption;
+	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
+	LtrReset ltrReset = (LtrReset)((reg & LTR_RESET_MASK) >> LTR_RESET_OFFSET);
+	return ltrReset;
 }
 
-static GainOption getGain()
+static LtrGain getLtrGain()
 {
-	uint8_t reg = ltrRegisters[CONTR_INDEX];
-	GainOption gainOption = (GainOption)((reg & GAIN_MASK) >> GAIN_OFFSET);
-	return gainOption;
+	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
+	LtrGain ltrGain = (LtrGain)((reg & LTR_GAIN_MASK) >> LTR_GAIN_OFFSET);
+	return ltrGain;
 }
 
-static MeasurementRateOption getMeasurementRate()
+static LtrMeasurementRate getLtrMeasurementRate()
 {
-	uint8_t reg = ltrRegisters[MEAS_RATE_INDEX];
-	MeasurementRateOption measurementRateOption = (MeasurementRateOption)
-			((reg & MEASUREMENT_RATE_MASK) >> MEASUREMENT_RATE_OFFSET);
-	return measurementRateOption;
+	uint8_t reg = ltrRegisters[LTR_MEASUREMENT_RATE_INDEX];
+	LtrMeasurementRate ltrMeasurementRate = (LtrMeasurementRate)
+			((reg & LTR_MEASUREMENT_RATE_MASK) >> LTR_MEASUREMENT_RATE_OFFSET);
+	return ltrMeasurementRate;
 }
 
-static IntegrationTimeOption getIntegrationTime()
+static LtrIntegrationTime getLtrIntegrationTime()
 {
-	uint8_t reg = ltrRegisters[MEAS_RATE_INDEX];
-	IntegrationTimeOption integrationTimeOption = (IntegrationTimeOption)
-			((reg & INTEGRATION_TIME_MASK) >> INTEGRATION_TIME_OFFSET);
-	return integrationTimeOption;
+	uint8_t reg = ltrRegisters[LTR_MEASUREMENT_RATE_INDEX];
+	LtrIntegrationTime ltrIntegrationTime = (LtrIntegrationTime)
+			((reg & LTR_INTEGRATION_TIME_MASK) >> LTR_INTEGRATION_TIME_OFFSET);
+	return ltrIntegrationTime;
 }
 
-static uint8_t getRevisionId()
+static uint8_t getLtrRevisionId()
 {
-	uint8_t reg = ltrRegisters[PART_ID_INDEX];
-	uint8_t revisionId = (reg & REVISION_ID_MASK) >> REVISION_ID_OFFSET;
-	return revisionId;
+	uint8_t reg = ltrRegisters[LTR_PART_ID_INDEX];
+	uint8_t ltrRevisionId =
+			(reg & LTR_REVISION_ID_MASK) >> LTR_REVISION_ID_OFFSET;
+	return ltrRevisionId;
 }
 
-static uint8_t getPartNumberId()
+static uint8_t getLtrPartNumberId()
 {
-	uint8_t reg = ltrRegisters[PART_ID_INDEX];
-	uint8_t partNumberId = (reg & PART_NUMBER_ID_MASK) >> PART_NUMBER_ID_OFFSET;
-	return partNumberId;
+	uint8_t reg = ltrRegisters[LTR_PART_ID_INDEX];
+	uint8_t ltrPartNumberId =
+			(reg & LTR_PART_NUMBER_ID_MASK) >> LTR_PART_NUMBER_ID_OFFSET;
+	return ltrPartNumberId;
 }
 
-static uint8_t getManufacturerId()
+static uint8_t getLtrManufacturerId()
 {
-	uint8_t reg = ltrRegisters[MANUFAC_ID_INDEX];
-	return reg;
+	return ltrRegisters[LTR_MANUFACTURER_ID_INDEX];
 }
 
-static uint8_t getDataCh1Low()
+static uint8_t getLtrChannel1Low()
 {
-	uint8_t reg = ltrRegisters[DATA_CH1_0_INDEX];
-	return reg;
+	return ltrRegisters[LTR_CHANNEL1_LOW_INDEX];
 }
 
-static uint8_t getDataCh1High()
+static uint8_t getLtrChannel1High()
 {
-	uint8_t reg = ltrRegisters[DATA_CH1_1_INDEX];
-	return reg;
+	return ltrRegisters[LTR_CHANNEL1_HIGH_INDEX];
 }
 
-static uint8_t getDataCh0Low()
+static uint8_t getLtrChannel0Low()
 {
-	uint8_t reg = ltrRegisters[DATA_CH0_0_INDEX];
-	return reg;
+	return ltrRegisters[LTR_CHANNEL0_LOW_INDEX];
 }
 
-static uint8_t getDataCh0High()
+static uint8_t getLtrChannel0High()
 {
-	uint8_t reg = ltrRegisters[DATA_CH0_1_INDEX];
-	return reg;
+	return ltrRegisters[LTR_CHANNEL0_HIGH_INDEX];
 }
 
-static DataStatusOption getDataStatus()
+static LtrDataStatus getLtrDataStatus()
 {
-	uint8_t reg = ltrRegisters[STATUS_INDEX];
-	DataStatusOption dataStatusOption = (DataStatusOption)
-			((reg & DATA_STATUS_MASK) >> DATA_STATUS_OFFSET);
-	return dataStatusOption;
+	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
+	LtrDataStatus ltrDataStatus = (LtrDataStatus)
+			((reg & LTR_DATA_STATUS_MASK) >> LTR_DATA_STATUS_OFFSET);
+	return ltrDataStatus;
 }
 
-static DataGainRangeOption getDataGainRange()
+static LtrDataGainRange getLtrDataGainRange()
 {
-	uint8_t reg = ltrRegisters[STATUS_INDEX];
-	DataGainRangeOption dataGainRangeOption = (DataGainRangeOption)
-			((reg & DATA_GAIN_RANGE_MASK) >> DATA_GAIN_RANGE_OFFSET);
-	return dataGainRangeOption;
+	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
+	LtrDataGainRange ltrDataGainRange = (LtrDataGainRange)
+			((reg & LTR_DATA_GAIN_RANGE_MASK) >> LTR_DATA_GAIN_RANGE_OFFSET);
+	return ltrDataGainRange;
 }
 
-static DataValidOption getDataValid()
+static LtrDataValidity getLtrDataValidity()
 {
-	uint8_t reg = ltrRegisters[STATUS_INDEX];
-	DataValidOption dataValidOption = (DataValidOption)
-			((reg & DATA_VALID_MASK) >> DATA_VALID_OFFSET);
-	return dataValidOption;
-}
-
-static void waitForPowerUp()
-{
-	osDelay(pdMS_TO_TICKS(100));
-}
-
-static void waitForWakeUp()
-{
-	osDelay(pdMS_TO_TICKS(10));
+	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
+	LtrDataValidity ltrDataValidity = (LtrDataValidity)
+			((reg & LTR_DATA_VALIDITY_MASK) >> LTR_DATA_VALIDITY_OFFSET);
+	return ltrDataValidity;
 }
 
 static void readLuxData()
 {
-	HAL_StatusTypeDef status = HAL_ERROR;
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
 	do
 	{
-		status = HAL_I2C_Mem_Read(&hi2c1,
-								  LTR_ADDRESS<<1,
-								  DATA_CH1_0_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-								  ltrRegisters + DATA_CH1_0_INDEX, 5,
-								  1000);
+		status = HAL_I2C_Mem_Read
+						  	 (&hi2c1,
+							  LTR_ADDRESS << 1,
+							  LTR_CHANNEL1_LOW_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+							  ltrRegisters + LTR_CHANNEL1_LOW_INDEX, 5,
+							  1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
 }
@@ -439,71 +436,70 @@ static uint16_t calculateLux()
 {
 	static uint16_t lux_ = 0;
 
-
-	if(getDataValid() == DATA_IS_VALID)
+	if(getLtrDataValidity() == LTR_DATA_VALIDITY_VALID)
 	{
 		uint16_t channel0 = 0;
-		uint16_t channel0High = (uint16_t)getDataCh0High();
-		uint16_t channel0Low = (uint16_t)getDataCh0Low();
-		channel0 = (channel0High << 8) | channel0Low;
+		uint8_t channel0High = getLtrChannel0High();
+		uint8_t channel0Low = getLtrChannel0Low();
+		channel0 = ((uint16_t)channel0High << 8) | (uint16_t)channel0Low;
 
 		uint16_t channel1 = 0;
-		uint16_t channel1High = (uint16_t)getDataCh1High();
-		uint16_t channel1Low = (uint16_t)getDataCh1Low();
-		channel1 = (channel1High << 8) | channel1Low;
+		uint8_t channel1High = getLtrChannel1High();
+		uint8_t channel1Low = getLtrChannel1Low();
+		channel1 = ((uint16_t)channel1High << 8) | (uint16_t)channel1Low;
 
 		uint8_t gain = 1;
-		GainOption gainOption = getGain();
-		switch(gainOption)
+		LtrGain ltrGain = getLtrGain();
+		switch(ltrGain)
 		{
-			case GAIN_1X:
+			case LTR_GAIN_1X:
 			default:
 				gain = 1;
 				break;
-			case GAIN_2X:
+			case LTR_GAIN_2X:
 				gain = 2;
 				break;
-			case GAIN_4X:
+			case LTR_GAIN_4X:
 				gain = 4;
 				break;
-			case GAIN_8X:
+			case LTR_GAIN_8X:
 				gain = 8;
 				break;
-			case GAIN_48X:
+			case LTR_GAIN_48X:
 				gain = 48;
 				break;
-			case GAIN_96X:
+			case LTR_GAIN_96X:
 				gain = 96;
 				break;
 		}
 
 		float integrationTime = 1.0f;
-		IntegrationTimeOption integrationTimeOption = getIntegrationTime();
-		switch(integrationTimeOption)
+		LtrIntegrationTime ltrIntegrationTime = getLtrIntegrationTime();
+		switch(ltrIntegrationTime)
 		{
-			case INTEGRATION_TIME_100MS:
+			case LTR_INTEGRATION_TIME_100MS:
 			default:
 				integrationTime = 1.0f;
 				break;
-			case INTEGRATION_TIME_50MS:
+			case LTR_INTEGRATION_TIME_50MS:
 				integrationTime = 0.5f;
 				break;
-			case INTEGRATION_TIME_200MS:
+			case LTR_INTEGRATION_TIME_200MS:
 				integrationTime = 2.0f;
 				break;
-			case INTEGRATION_TIME_400MS:
+			case LTR_INTEGRATION_TIME_400MS:
 				integrationTime = 4.0f;
 				break;
-			case INTEGRATIONG_TIME_150MS:
+			case LTR_INTEGRATIONG_TIME_150MS:
 				integrationTime = 1.5f;
 				break;
-			case INTEGRATION_TIME_250MS:
+			case LTR_INTEGRATION_TIME_250MS:
 				integrationTime = 2.5f;
 				break;
-			case INTEGRATION_TIME_300MS:
+			case LTR_INTEGRATION_TIME_300MS:
 				integrationTime = 3.0f;
 				break;
-			case INTEGRATION_TIME_350MS:
+			case LTR_INTEGRATION_TIME_350MS:
 				integrationTime = 3.5f;
 				break;
 		}
@@ -538,4 +534,13 @@ static void setLux(uint16_t lux_)
 	osMutexAcquire(mutexLuxHandle, osWaitForever);
 	lux = lux_;
 	osMutexRelease(mutexLuxHandle);
+}
+
+uint16_t getLux()
+{
+	uint16_t lux_ = 0;
+	osMutexAcquire(mutexLuxHandle, osWaitForever);
+	lux_ = lux;
+	osMutexRelease(mutexLuxHandle);
+	return lux_;
 }

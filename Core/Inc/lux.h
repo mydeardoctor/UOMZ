@@ -2,7 +2,7 @@
 #define INC_LUX_H_
 
 
-extern volatile uint16_t lux;
+uint16_t getLux();
 
 
 #endif /* INC_LUX_H_ */
