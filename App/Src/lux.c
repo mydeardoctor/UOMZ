@@ -164,6 +164,7 @@ static LtrDataStatus getLtrDataStatus();
 static LtrDataGainRange getLtrDataGainRange();
 static LtrDataValidity getLtrDataValidity();
 
+static bool isNewLuxDataAvailable();
 static void readLuxData();
 static uint16_t calculateLux();
 static void setLux(uint16_t lux_);
@@ -177,9 +178,13 @@ void taskLuxFunction(void *argument)
 	{
 		uint32_t tick = osKernelGetTickCount();
 
-		readLuxData();
-		uint16_t lux_ = calculateLux();
-		setLux(lux_);
+		bool newLuxDataAvailable = isNewLuxDataAvailable();
+		if(newLuxDataAvailable == true)
+		{
+			readLuxData();
+			uint16_t lux_ = calculateLux();
+			setLux(lux_);
+		}
 
 		osDelayUntil(tick + pdMS_TO_TICKS(TASK_LUX_PERIOD));
 	}
@@ -416,6 +421,34 @@ static LtrDataValidity getLtrDataValidity()
 	return ltrDataValidity;
 }
 
+static bool isNewLuxDataAvailable()
+{
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
+	do
+	{
+		status = HAL_I2C_Mem_Read
+						  	 (&hi2c1,
+							  LTR_ADDRESS << 1,
+							  LTR_STATUS_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+							  ltrRegisters + LTR_STATUS_INDEX, 1,
+							  1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
+
+	LtrDataStatus ltrDataStatus = getLtrDataStatus();
+	LtrDataValidity ltrDataValidity = getLtrDataValidity();
+	if((ltrDataStatus == LTR_DATA_STATUS_NEW) &&
+	   (ltrDataValidity == LTR_DATA_VALIDITY_VALID))
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
+}
+
 static void readLuxData()
 {
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
@@ -426,7 +459,7 @@ static void readLuxData()
 						  	 (&hi2c1,
 							  LTR_ADDRESS << 1,
 							  LTR_CHANNEL1_LOW_ADDRESS, I2C_MEMADD_SIZE_8BIT,
-							  ltrRegisters + LTR_CHANNEL1_LOW_INDEX, 5,
+							  ltrRegisters + LTR_CHANNEL1_LOW_INDEX, 4,
 							  1000);
 	}while(status != HAL_OK);
 	osMutexRelease(mutexI2cHandle);
@@ -436,94 +469,91 @@ static uint16_t calculateLux()
 {
 	static uint16_t lux_ = 0;
 
-	if(getLtrDataValidity() == LTR_DATA_VALIDITY_VALID)
+	uint16_t channel0 = 0;
+	uint8_t channel0High = getLtrChannel0High();
+	uint8_t channel0Low = getLtrChannel0Low();
+	channel0 = ((uint16_t)channel0High << 8) | (uint16_t)channel0Low;
+
+	uint16_t channel1 = 0;
+	uint8_t channel1High = getLtrChannel1High();
+	uint8_t channel1Low = getLtrChannel1Low();
+	channel1 = ((uint16_t)channel1High << 8) | (uint16_t)channel1Low;
+
+	uint8_t gain = 1;
+	LtrGain ltrGain = getLtrGain();
+	switch(ltrGain)
 	{
-		uint16_t channel0 = 0;
-		uint8_t channel0High = getLtrChannel0High();
-		uint8_t channel0Low = getLtrChannel0Low();
-		channel0 = ((uint16_t)channel0High << 8) | (uint16_t)channel0Low;
+		case LTR_GAIN_1X:
+		default:
+			gain = 1;
+			break;
+		case LTR_GAIN_2X:
+			gain = 2;
+			break;
+		case LTR_GAIN_4X:
+			gain = 4;
+			break;
+		case LTR_GAIN_8X:
+			gain = 8;
+			break;
+		case LTR_GAIN_48X:
+			gain = 48;
+			break;
+		case LTR_GAIN_96X:
+			gain = 96;
+			break;
+	}
 
-		uint16_t channel1 = 0;
-		uint8_t channel1High = getLtrChannel1High();
-		uint8_t channel1Low = getLtrChannel1Low();
-		channel1 = ((uint16_t)channel1High << 8) | (uint16_t)channel1Low;
+	float integrationTime = 1.0f;
+	LtrIntegrationTime ltrIntegrationTime = getLtrIntegrationTime();
+	switch(ltrIntegrationTime)
+	{
+		case LTR_INTEGRATION_TIME_100MS:
+		default:
+			integrationTime = 1.0f;
+			break;
+		case LTR_INTEGRATION_TIME_50MS:
+			integrationTime = 0.5f;
+			break;
+		case LTR_INTEGRATION_TIME_200MS:
+			integrationTime = 2.0f;
+			break;
+		case LTR_INTEGRATION_TIME_400MS:
+			integrationTime = 4.0f;
+			break;
+		case LTR_INTEGRATIONG_TIME_150MS:
+			integrationTime = 1.5f;
+			break;
+		case LTR_INTEGRATION_TIME_250MS:
+			integrationTime = 2.5f;
+			break;
+		case LTR_INTEGRATION_TIME_300MS:
+			integrationTime = 3.0f;
+			break;
+		case LTR_INTEGRATION_TIME_350MS:
+			integrationTime = 3.5f;
+			break;
+	}
 
-		uint8_t gain = 1;
-		LtrGain ltrGain = getLtrGain();
-		switch(ltrGain)
-		{
-			case LTR_GAIN_1X:
-			default:
-				gain = 1;
-				break;
-			case LTR_GAIN_2X:
-				gain = 2;
-				break;
-			case LTR_GAIN_4X:
-				gain = 4;
-				break;
-			case LTR_GAIN_8X:
-				gain = 8;
-				break;
-			case LTR_GAIN_48X:
-				gain = 48;
-				break;
-			case LTR_GAIN_96X:
-				gain = 96;
-				break;
-		}
-
-		float integrationTime = 1.0f;
-		LtrIntegrationTime ltrIntegrationTime = getLtrIntegrationTime();
-		switch(ltrIntegrationTime)
-		{
-			case LTR_INTEGRATION_TIME_100MS:
-			default:
-				integrationTime = 1.0f;
-				break;
-			case LTR_INTEGRATION_TIME_50MS:
-				integrationTime = 0.5f;
-				break;
-			case LTR_INTEGRATION_TIME_200MS:
-				integrationTime = 2.0f;
-				break;
-			case LTR_INTEGRATION_TIME_400MS:
-				integrationTime = 4.0f;
-				break;
-			case LTR_INTEGRATIONG_TIME_150MS:
-				integrationTime = 1.5f;
-				break;
-			case LTR_INTEGRATION_TIME_250MS:
-				integrationTime = 2.5f;
-				break;
-			case LTR_INTEGRATION_TIME_300MS:
-				integrationTime = 3.0f;
-				break;
-			case LTR_INTEGRATION_TIME_350MS:
-				integrationTime = 3.5f;
-				break;
-		}
-
-		float ratio = (float)channel1/((float)channel0 + (float)channel1);
-		if(ratio < 0.45f)
-		{
-			lux_ = (1.7743f*(float)channel0 + 1.1059*(float)channel1)
-					/(float)gain/integrationTime;
-		}
-		else if((ratio < 0.64f) && (ratio >= 0.45f))
-		{
-			lux_ = (4.2785f*(float)channel0 - 1.9548*(float)channel1)
-					/(float)gain/integrationTime;
-		}
-		else if((ratio < 0.85f) && (ratio >= 0.64f))
-		{
-			lux_ = (0.5926f*(float)channel0 + 0.1185*(float)channel1)
-					/(float)gain/integrationTime;
-		}
-		else
-		{
-			lux_ = 0;
-		}
+	float ratio = (float)channel1/((float)channel0 + (float)channel1);
+	if(ratio < 0.45f)
+	{
+		lux_ = (1.7743f*(float)channel0 + 1.1059*(float)channel1)
+				/(float)gain/integrationTime;
+	}
+	else if((ratio < 0.64f) && (ratio >= 0.45f))
+	{
+		lux_ = (4.2785f*(float)channel0 - 1.9548*(float)channel1)
+				/(float)gain/integrationTime;
+	}
+	else if((ratio < 0.85f) && (ratio >= 0.64f))
+	{
+		lux_ = (0.5926f*(float)channel0 + 0.1185*(float)channel1)
+				/(float)gain/integrationTime;
+	}
+	else
+	{
+		lux_ = 0;
 	}
 
 	return lux_;

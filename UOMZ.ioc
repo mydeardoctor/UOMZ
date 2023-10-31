@@ -2,7 +2,7 @@
 CAD.formats=
 CAD.pinconfig=
 CAD.provider=
-FREERTOS.BinarySemaphores01=semaphoreDisplay,Static,semaphoreDisplayControlBlock;semaphoreLux,Static,semaphoreLuxControlBlock
+FREERTOS.BinarySemaphores01=semaphoreDisplay,Static,semaphoreDisplayControlBlock
 FREERTOS.FootprintOK=true
 FREERTOS.HEAP_NUMBER=1
 FREERTOS.INCLUDE_eTaskGetState=0

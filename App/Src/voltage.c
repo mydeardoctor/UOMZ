@@ -119,6 +119,8 @@ const uint8_t STC_GG_CONVERSION_MASK  = 0x04;
 const uint8_t STC_VTM_CONVERSION_MASK = 0x08;
 const uint8_t STC_RESET_MASK		  = 0x10;
 
+const uint32_t STC_TIME_TO_POWER_UP = 100u;
+
 
 static void voltageInit();
 
@@ -165,6 +167,7 @@ static uint8_t getStcTemperatureLow();
 static uint8_t getStcTemperatureHigh();
 static uint8_t getStcPartTypeId();
 
+static bool isNewVoltageDataAvailable();
 static void readVoltageData();
 static uint32_t calculateVoltage();
 static void setVoltage(uint32_t voltage_);
@@ -178,9 +181,13 @@ void taskVoltageFunction(void *argument)
 	{
 		uint32_t tick = osKernelGetTickCount();
 
-		readVoltageData();
-		uint32_t voltage_ = calculateVoltage();
-		setVoltage(voltage_);
+		bool newVoltageDataAvailable = isNewVoltageDataAvailable();
+		if(newVoltageDataAvailable == true)
+		{
+			readVoltageData();
+			uint32_t voltage_ = calculateVoltage();
+			setVoltage(voltage_);
+		}
 
 		osDelayUntil(tick + pdMS_TO_TICKS(TASK_VOLTAGE_PERIOD));
 	}
@@ -188,6 +195,8 @@ void taskVoltageFunction(void *argument)
 
 static void voltageInit()
 {
+	osDelay(pdMS_TO_TICKS(STC_TIME_TO_POWER_UP));
+
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
 	HAL_StatusTypeDef status = HAL_ERROR;
 	do
@@ -446,6 +455,31 @@ static uint8_t getStcTemperatureHigh()
 static uint8_t getStcPartTypeId()
 {
 	return stcRegisters[STC_PART_TYPE_ID_INDEX];
+}
+
+static bool isNewVoltageDataAvailable()
+{
+	osMutexAcquire(mutexI2cHandle, osWaitForever);
+	HAL_StatusTypeDef status = HAL_ERROR;
+	do
+	{
+		status = HAL_I2C_Mem_Read(&hi2c1,
+								  STC_ADDRESS << 1,
+								  STC_CONTROL_ADDRESS, I2C_MEMADD_SIZE_8BIT,
+								  stcRegisters + STC_CONTROL_INDEX, 1,
+								  1000);
+	}while(status != HAL_OK);
+	osMutexRelease(mutexI2cHandle);
+
+	StcVtmConversion stcVtmConversion = getStcVtmConversion();
+	if(stcVtmConversion == STC_VTM_CONVERSION_COMPLETE)
+	{
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 static void readVoltageData()

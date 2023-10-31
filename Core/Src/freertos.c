@@ -118,14 +118,6 @@ const osSemaphoreAttr_t semaphoreDisplay_attributes = {
   .cb_mem = &semaphoreDisplayControlBlock,
   .cb_size = sizeof(semaphoreDisplayControlBlock),
 };
-/* Definitions for semaphoreLux */
-osSemaphoreId_t semaphoreLuxHandle;
-osStaticSemaphoreDef_t semaphoreLuxControlBlock;
-const osSemaphoreAttr_t semaphoreLux_attributes = {
-  .name = "semaphoreLux",
-  .cb_mem = &semaphoreLuxControlBlock,
-  .cb_size = sizeof(semaphoreLuxControlBlock),
-};
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
@@ -164,9 +156,6 @@ void MX_FREERTOS_Init(void) {
   /* Create the semaphores(s) */
   /* creation of semaphoreDisplay */
   semaphoreDisplayHandle = osSemaphoreNew(1, 1, &semaphoreDisplay_attributes);
-
-  /* creation of semaphoreLux */
-  semaphoreLuxHandle = osSemaphoreNew(1, 1, &semaphoreLux_attributes);
 
   /* USER CODE BEGIN RTOS_SEMAPHORES */
   /* add semaphores, ... */
