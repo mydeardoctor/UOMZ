@@ -3,131 +3,155 @@
 #include "i2c.h"
 
 
-#define LTR_REGISTERS_SIZE 9u
+#define LTR_REGISTERS_SIZE 9u /**< Длина массива регистров датчика освещённости. */
 
 
+/**
+  Режим работы датчика освещённости.
+ */
 typedef enum
 {
-	LTR_MODE_STANDBY = 0x0,
-	LTR_MODE_ACTIVE	 = 0x1
+	LTR_MODE_STANDBY = 0x0, /**< Датчик освещённости не работает. */
+	LTR_MODE_ACTIVE	 = 0x1  /**< Датчик освещённости работает. */
 } LtrMode;
 
+/**
+  Перезагрузка датчика освещённости.
+ */
 typedef enum
 {
-	LTR_RESET_OFF = 0x0,
-	LTR_RESET_ON  = 0x1
+	LTR_RESET_OFF = 0x0, /**< Перезагрузка датчика освещённости не производится. */
+	LTR_RESET_ON  = 0x1  /**< Перезагрузка датчика освещённости. */
 } LtrReset;
 
+/**
+  Усиление датчика освещённости.
+ */
 typedef enum
 {
-	LTR_GAIN_1X  = 0x0,
-	LTR_GAIN_2X  = 0x1,
-	LTR_GAIN_4X  = 0x2,
-	LTR_GAIN_8X  = 0x3,
-	LTR_GAIN_48X = 0x6,
-	LTR_GAIN_96X = 0x7
+	LTR_GAIN_1X  = 0x0, /**< Усиление датчика освещённости = 1. Диапазон измерения от 1 до 64000 люксов. */
+	LTR_GAIN_2X  = 0x1, /**< Усиление датчика освещённости = 2. Диапазон измерения от 0,5 до 32000 люксов. */
+	LTR_GAIN_4X  = 0x2, /**< Усиление датчика освещённости = 4. Диапазон измерения от 0,25 до 16000 люксов. */
+	LTR_GAIN_8X  = 0x3, /**< Усиление датчика освещённости = 8. Диапазон измерения от 0,125 до 8000 люксов. */
+	LTR_GAIN_48X = 0x6, /**< Усиление датчика освещённости = 48. Диапазон измерения от 0,02 до 1300 люксов. */
+	LTR_GAIN_96X = 0x7  /**< Усиление датчика освещённости = 96. Диапазон измерения от 0,01 до 600 люксов. */
 } LtrGain;
 
+/**
+  Период измерения датчика освещённости.
+ */
 typedef enum
 {
-	LTR_MEASUREMENT_RATE_50MS	= 0x0,
-	LTR_MEASUREMENT_RATE_100MS	= 0x1,
-	LTR_MEASUREMENT_RATE_200MS	= 0x2,
-	LTR_MEASUREMENT_RATE_500MS	= 0x3,
-	LTR_MEASUREMENT_RATE_1000MS = 0x4,
-	LTR_MEASUREMENT_RATE_2000MS = 0x5
+	LTR_MEASUREMENT_RATE_50MS	= 0x0, /**< Период измерения датчика освещённости = 50 мс */
+	LTR_MEASUREMENT_RATE_100MS	= 0x1, /**< Период измерения датчика освещённости = 100 мс */
+	LTR_MEASUREMENT_RATE_200MS	= 0x2, /**< Период измерения датчика освещённости = 200 мс */
+	LTR_MEASUREMENT_RATE_500MS	= 0x3, /**< Период измерения датчика освещённости = 500 мс */
+	LTR_MEASUREMENT_RATE_1000MS = 0x4, /**< Период измерения датчика освещённости = 1000 мс */
+	LTR_MEASUREMENT_RATE_2000MS = 0x5  /**< Период измерения датчика освещённости = 2000 мс */
 } LtrMeasurementRate;
 
+/**
+  Время интеграции датчика освещённости.
+ */
 typedef enum
 {
-	LTR_INTEGRATION_TIME_100MS	= 0x0,
-	LTR_INTEGRATION_TIME_50MS	= 0x1,
-	LTR_INTEGRATION_TIME_200MS	= 0x2,
-	LTR_INTEGRATION_TIME_400MS	= 0x3,
-	LTR_INTEGRATIONG_TIME_150MS = 0x4,
-	LTR_INTEGRATION_TIME_250MS	= 0x5,
-	LTR_INTEGRATION_TIME_300MS	= 0x6,
-	LTR_INTEGRATION_TIME_350MS	= 0x7
+	LTR_INTEGRATION_TIME_100MS	= 0x0, /**< Время интеграции датчика освещённости = 100 мс */
+	LTR_INTEGRATION_TIME_50MS	= 0x1, /**< Время интеграции датчика освещённости = 50 мс */
+	LTR_INTEGRATION_TIME_200MS	= 0x2, /**< Время интеграции датчика освещённости = 200 мс */
+	LTR_INTEGRATION_TIME_400MS	= 0x3, /**< Время интеграции датчика освещённости = 400 мс */
+	LTR_INTEGRATIONG_TIME_150MS = 0x4, /**< Время интеграции датчика освещённости = 150 мс */
+	LTR_INTEGRATION_TIME_250MS	= 0x5, /**< Время интеграции датчика освещённости = 250 мс */
+	LTR_INTEGRATION_TIME_300MS	= 0x6, /**< Время интеграции датчика освещённости = 300 мс */
+	LTR_INTEGRATION_TIME_350MS	= 0x7  /**< Время интеграции датчика освещённости = 350 мс */
 } LtrIntegrationTime;
 
+/**
+  Статус измерения освещённости.
+ */
 typedef enum
 {
-	LTR_DATA_STATUS_OLD = 0x0,
-	LTR_DATA_STATUS_NEW = 0x1
+	LTR_DATA_STATUS_OLD = 0x0, /**< Измерение освещённости не закончено. */
+	LTR_DATA_STATUS_NEW = 0x1  /**< Измерение освещённости закончено. */
 } LtrDataStatus;
 
+/**
+  Усиление датчика освещённости.
+ */
 typedef enum
 {
-	LTR_DATA_GAIN_RANGE_1X	= 0x0,
-	LTR_DATA_GAIN_RANGE_2X	= 0x1,
-	LTR_DATA_GAIN_RANGE_4X	= 0x2,
-	LTR_DATA_GAIN_RANGE_8X	= 0x3,
-	LTR_DATA_GAIN_RANGE_48X = 0x6,
-	LTR_DATA_GAIN_RANGE_96X = 0x7
+	LTR_DATA_GAIN_RANGE_1X	= 0x0, /**< Усиление датчика освещённости = 1. Диапазон измерения от 1 до 64000 люксов. */
+	LTR_DATA_GAIN_RANGE_2X	= 0x1, /**< Усиление датчика освещённости = 2. Диапазон измерения от 0,5 до 32000 люксов. */
+	LTR_DATA_GAIN_RANGE_4X	= 0x2, /**< Усиление датчика освещённости = 4. Диапазон измерения от 0,25 до 16000 люксов. */
+	LTR_DATA_GAIN_RANGE_8X	= 0x3, /**< Усиление датчика освещённости = 8. Диапазон измерения от 0,125 до 8000 люксов. */
+	LTR_DATA_GAIN_RANGE_48X = 0x6, /**< Усиление датчика освещённости = 48. Диапазон измерения от 0,02 до 1300 люксов. */
+	LTR_DATA_GAIN_RANGE_96X = 0x7  /**< Усиление датчика освещённости = 96. Диапазон измерения от 0,01 до 600 люксов. */
 } LtrDataGainRange;
 
+/**
+  Достоверность данных датчика освещённости.
+ */
 typedef enum
 {
-	LTR_DATA_VALIDITY_VALID	  = 0x0,
-	LTR_DATA_VALIDITY_INVALID = 0x1
+	LTR_DATA_VALIDITY_VALID	  = 0x0, /**< Данные датчика освещённости достоверны. */
+	LTR_DATA_VALIDITY_INVALID = 0x1  /**< Данные датчика освещённости не достоверны. */
 } LtrDataValidity;
 
 
-volatile uint16_t lux = 0u;
-extern osMutexId_t mutexI2cHandle;
-extern osMutexId_t mutexLuxHandle;
-const uint32_t TASK_LUX_PERIOD = 100u;
+volatile uint16_t lux = 0u;			   /**< Освещённость, лк */
+extern osMutexId_t mutexI2cHandle;	   /**< Мьютекс для доступа к I2C. */
+extern osMutexId_t mutexLuxHandle;	   /**< Мьютекс для доступа к освещённости. */
+const uint32_t TASK_LUX_PERIOD = 100u; /**< Период запуска задачи чтения освещённости, мс */
 
-uint8_t ltrRegisters[LTR_REGISTERS_SIZE];
-const uint8_t LTR_CONTROL_INDEX			 = 0u;
-const uint8_t LTR_MEASUREMENT_RATE_INDEX = 1u;
-const uint8_t LTR_PART_ID_INDEX			 = 2u;
-const uint8_t LTR_MANUFACTURER_ID_INDEX	 = 3u;
-const uint8_t LTR_CHANNEL1_LOW_INDEX	 = 4u;
-const uint8_t LTR_CHANNEL1_HIGH_INDEX	 = 5u;
-const uint8_t LTR_CHANNEL0_LOW_INDEX	 = 6u;
-const uint8_t LTR_CHANNEL0_HIGH_INDEX	 = 7u;
-const uint8_t LTR_STATUS_INDEX	   	 	 = 8u;
+uint8_t ltrRegisters[LTR_REGISTERS_SIZE];	   /**< Массив регистров датчика освещённости. */
+const uint8_t LTR_CONTROL_INDEX			 = 0u; /**< Индекс регистра CONTROL в массиве регистров датчика освещённости. */
+const uint8_t LTR_MEASUREMENT_RATE_INDEX = 1u; /**< Индекс регистра MEASUREMENT_RATE в массиве регистров датчика освещённости. */
+const uint8_t LTR_PART_ID_INDEX			 = 2u; /**< Индекс регистра PART_ID в массиве регистров датчика освещённости. */
+const uint8_t LTR_MANUFACTURER_ID_INDEX	 = 3u; /**< Индекс регистра MANUFACTURER_ID в массиве регистров датчика освещённости. */
+const uint8_t LTR_CHANNEL1_LOW_INDEX	 = 4u; /**< Индекс регистра CHANNEL1_LOW в массиве регистров датчика освещённости. */
+const uint8_t LTR_CHANNEL1_HIGH_INDEX	 = 5u; /**< Индекс регистра CHANNEL1_HIGH в массиве регистров датчика освещённости. */
+const uint8_t LTR_CHANNEL0_LOW_INDEX	 = 6u; /**< Индекс регистра CHANNEL0_LOW в массиве регистров датчика освещённости. */
+const uint8_t LTR_CHANNEL0_HIGH_INDEX	 = 7u; /**< Индекс регистра CHANNEL0_HIGH в массиве регистров датчика освещённости. */
+const uint8_t LTR_STATUS_INDEX	   	 	 = 8u; /**< Индекс регистра STATUS в массиве регистров датчика освещённости. */
 
-const uint8_t LTR_ADDRESS		 		   = 0x29;
-const uint8_t LTR_CONTROL_ADDRESS		   = 0x80;
-const uint8_t LTR_MEASUREMENT_RATE_ADDRESS = 0x85;
-const uint8_t LTR_PART_ID_ADDRESS	 	   = 0x86;
-const uint8_t LTR_MANUFACTURER_ID_ADDRESS  = 0x87;
-const uint8_t LTR_CHANNEL1_LOW_ADDRESS	   = 0x88;
-const uint8_t LTR_CHANNEL1_HIGH_ADDRESS	   = 0x89;
-const uint8_t LTR_CHANNEL0_LOW_ADDRESS	   = 0x8A;
-const uint8_t LTR_CHANNEL0_HIGH_ADDRESS	   = 0x8B;
-const uint8_t LTR_STATUS_ADDRESS		   = 0x8C;
+const uint8_t LTR_ADDRESS		 		   = 0x29; /**< Адрес датчика отсвещённости. */
+const uint8_t LTR_CONTROL_ADDRESS		   = 0x80; /**< Адрес регистра CONTROL датчика освещённости. */
+const uint8_t LTR_MEASUREMENT_RATE_ADDRESS = 0x85; /**< Адрес регистра MEASUREMENT_RATE датчика освещённости. */
+const uint8_t LTR_PART_ID_ADDRESS	 	   = 0x86; /**< Адрес регистра PART_ID датчика освещённости. */
+const uint8_t LTR_MANUFACTURER_ID_ADDRESS  = 0x87; /**< Адрес регистра MANUFACTURER_ID датчика освещённости. */
+const uint8_t LTR_CHANNEL1_LOW_ADDRESS	   = 0x88; /**< Адрес регистра CHANNEL1_LOW датчика освещённости. */
+const uint8_t LTR_CHANNEL1_HIGH_ADDRESS	   = 0x89; /**< Адрес регистра CHANNEL1_HIGH датчика освещённости. */
+const uint8_t LTR_CHANNEL0_LOW_ADDRESS	   = 0x8A; /**< Адрес регистра CHANNEL0_LOW датчика освещённости. */
+const uint8_t LTR_CHANNEL0_HIGH_ADDRESS	   = 0x8B; /**< Адрес регистра CHANNEL0_HIGH датчика освещённости. */
+const uint8_t LTR_STATUS_ADDRESS		   = 0x8C; /**< Адрес регистра STATUS датчика освещённости. */
 
-const uint8_t LTR_PART_NUMBER_ID  = 0x0A;
-const uint8_t LTR_REVISION_ID	  = 0x00;
-const uint8_t LTR_MANUFACTURER_ID = 0x05;
+const uint8_t LTR_PART_NUMBER_ID  = 0x0A; /**< Серийный номер датчика освещённости. */
+const uint8_t LTR_REVISION_ID	  = 0x00; /**< Номер ревизии датчика освещённости. */
+const uint8_t LTR_MANUFACTURER_ID = 0x05; /**< Производственный номер датчика освещённости. */
 
-const uint8_t LTR_MODE_OFFSET			  = 0u;
-const uint8_t LTR_RESET_OFFSET		  	  = 1u;
-const uint8_t LTR_GAIN_OFFSET			  = 2u;
-const uint8_t LTR_MEASUREMENT_RATE_OFFSET = 0u;
-const uint8_t LTR_INTEGRATION_TIME_OFFSET = 3u;
-const uint8_t LTR_REVISION_ID_OFFSET	  = 0u;
-const uint8_t LTR_PART_NUMBER_ID_OFFSET	  = 4u;
-const uint8_t LTR_DATA_STATUS_OFFSET	  = 2u;
-const uint8_t LTR_DATA_GAIN_RANGE_OFFSET  = 4u;
-const uint8_t LTR_DATA_VALIDITY_OFFSET	  = 7u;
+const uint8_t LTR_MODE_OFFSET			  = 0u; /**< Сдвиг поля MODE в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_RESET_OFFSET		  	  = 1u; /**< Сдвиг поля RESET в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_GAIN_OFFSET			  = 2u; /**< Сдвиг поля GAIN в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_MEASUREMENT_RATE_OFFSET = 0u; /**< Сдвиг поля MEASUREMENT_RATE в регистре MEASUREMENT_RATE датчика освещённости. */
+const uint8_t LTR_INTEGRATION_TIME_OFFSET = 3u; /**< Сдвиг поля INTEGRATION_TIME в регистре MEASUREMENT_RATE датчика освещённости. */
+const uint8_t LTR_REVISION_ID_OFFSET	  = 0u; /**< Сдвиг поля REVISION_ID в регистре PART_ID датчика освещённости. */
+const uint8_t LTR_PART_NUMBER_ID_OFFSET	  = 4u; /**< Сдвиг поля PART_NUMBER_ID в регистре PART_ID датчика освещённости. */
+const uint8_t LTR_DATA_STATUS_OFFSET	  = 2u; /**< Сдвиг поля DATA_STATUS в регистре STATUS датчика освещённости. */
+const uint8_t LTR_DATA_GAIN_RANGE_OFFSET  = 4u; /**< Сдвиг поля DATA_GAIN_RANGE в регистре STATUS датчика освещённости. */
+const uint8_t LTR_DATA_VALIDITY_OFFSET	  = 7u; /**< Сдвиг поля DATA_VALIDITY в регистре STATUS датчика освещённости. */
 
-const uint8_t LTR_MODE_MASK				  = 0x01;
-const uint8_t LTR_RESET_MASK			  = 0x02;
-const uint8_t LTR_GAIN_MASK				  = 0x1C;
-const uint8_t LTR_MEASUREMENT_RATE_MASK	  = 0x07;
-const uint8_t LTR_INTEGRATION_TIME_MASK	  = 0x38;
-const uint8_t LTR_REVISION_ID_MASK		  = 0x0F;
-const uint8_t LTR_PART_NUMBER_ID_MASK	  = 0xF0;
-const uint8_t LTR_DATA_STATUS_MASK		  = 0x04;
-const uint8_t LTR_DATA_GAIN_RANGE_MASK	  = 0x70;
-const uint8_t LTR_DATA_VALIDITY_MASK	  = 0x80;
+const uint8_t LTR_MODE_MASK				  = 0x01; /**< Маска для чтения поля MODE в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_RESET_MASK			  = 0x02; /**< Маска для чтения поля RESET в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_GAIN_MASK				  = 0x1C; /**< Маска для чтения поля GAIN в регистре CONTROL датчика освещённости. */
+const uint8_t LTR_MEASUREMENT_RATE_MASK	  = 0x07; /**< Маска для чтения поля MEASUREMENT_RATE в регистре MEASUREMENT_RATE датчика освещённости. */
+const uint8_t LTR_INTEGRATION_TIME_MASK	  = 0x38; /**< Маска для чтения поля INTEGRATION_TIME в регистре MEASUREMENT_RATE датчика освещённости. */
+const uint8_t LTR_REVISION_ID_MASK		  = 0x0F; /**< Маска для чтения поля REVISION_ID в регистре PART_ID датчика освещённости. */
+const uint8_t LTR_PART_NUMBER_ID_MASK	  = 0xF0; /**< Маска для чтения поля PART_NUMBER_ID в регистре PART_ID датчика освещённости. */
+const uint8_t LTR_DATA_STATUS_MASK		  = 0x04; /**< Маска для чтения поля DATA_STATUS в регистре STATUS датчика освещённости. */
+const uint8_t LTR_DATA_GAIN_RANGE_MASK	  = 0x70; /**< Маска для чтения поля DATA_GAIN_RANGE в регистре STATUS датчика освещённости. */
+const uint8_t LTR_DATA_VALIDITY_MASK	  = 0x80; /**< Маска для чтения поля DATA_VALIDITY в регистре STATUS датчика освещённости. */
 
-const uint32_t LTR_TIME_TO_POWER_UP = 100u;
-const uint32_t LTR_TIME_TO_WAKE_UP	= 10u;
+const uint32_t LTR_TIME_TO_POWER_UP = 100u; /**< Время ожидания до полного запуска датчика освещённости, мс */
+const uint32_t LTR_TIME_TO_WAKE_UP	= 10u;  /**< Время ожидания до начала работы после запуска датчика освещённости, мс */
 
 
 static void luxInit();
@@ -170,6 +194,15 @@ static uint16_t calculateLux();
 static void setLux(uint16_t lux_);
 
 
+/**
+  @brief Задача RTOS чтения освещённости из датчика освещённости.
+
+  Проверяет готовность новых данных для чтения. \n
+  В случае готовности читает новые данные в необработанном виде. \n
+  Преобразует полученные данные в освещённость в люксах. \n
+  Записывает освещённость в глобальную переменную. \n
+  Период запуска задачи составляет 100 мс.
+ */
 void taskLuxFunction(void *argument)
 {
 	luxInit();
@@ -190,6 +223,14 @@ void taskLuxFunction(void *argument)
 	}
 }
 
+/**
+  @brief Инициализирует работу с датчиком освещённости.
+
+  Ожидает время до полного запуска датчика освещённости. \n
+  Проверяет связь по I2C. \n
+  Настраивает и запускает работу датчика освещённости. \n
+  Ожидает время до начала работы датчика освещённости.
+ */
 static void luxInit()
 {
 	osDelay(pdMS_TO_TICKS(LTR_TIME_TO_POWER_UP));
@@ -237,6 +278,9 @@ static void luxInit()
 	osDelay(pdMS_TO_TICKS(LTR_TIME_TO_WAKE_UP));
 }
 
+/**
+  @brief Записывает значения по умолчанию в массив регистров датчика освещённости.
+ */
 static void setDefaultLtrRegisterValues()
 {
 	setLtrControl(LTR_MODE_STANDBY,
@@ -255,6 +299,12 @@ static void setDefaultLtrRegisterValues()
 				 LTR_DATA_VALIDITY_VALID);
 }
 
+/**
+  @brief Записывает значение регистра CONTROL в массив регистров датчика освещённости.
+  @param ltrMode Режим работы датчика освещённости.
+  @param ltrReset Перезагрузка датчика освещённости.
+  @param ltrGain Усиление датчика освещённости.
+ */
 static void setLtrControl(LtrMode ltrMode,
 						  LtrReset ltrReset,
 						  LtrGain ltrGain)
@@ -266,6 +316,11 @@ static void setLtrControl(LtrMode ltrMode,
 	ltrRegisters[LTR_CONTROL_INDEX] = reg;
 }
 
+/**
+  @brief Записывает значение регистра MEASUREMENT_RATE в массив регистров датчика освещённости.
+  @param ltrMeasurementRate Период измерения датчика освещённости.
+  @param ltrIntegrationTime Время интеграции датчика освещённости.
+ */
 static void setLtrMeasurementRate(LtrMeasurementRate ltrMeasurementRate,
 								  LtrIntegrationTime ltrIntegrationTime)
 {
@@ -275,6 +330,9 @@ static void setLtrMeasurementRate(LtrMeasurementRate ltrMeasurementRate,
 	ltrRegisters[LTR_MEASUREMENT_RATE_INDEX] = reg;
 }
 
+/**
+  @brief Записывает значение регистра PART_ID в массив регистров датчика освещённости.
+ */
 static void setLtrPartId()
 {
 	uint8_t reg = 0;
@@ -283,31 +341,56 @@ static void setLtrPartId()
 	ltrRegisters[LTR_PART_ID_INDEX] = reg;
 }
 
+/**
+  @brief Записывает значение регистра MANUFACTURER_ID в массив регистров датчика освещённости.
+ */
 static void setLtrManufacturerId()
 {
 	ltrRegisters[LTR_MANUFACTURER_ID_INDEX] = LTR_MANUFACTURER_ID;
 }
 
+/**
+  @brief Записывает значение регистра CHANNEL1_LOW в массив регистров датчика освещённости.
+  @param channel1Low Младший байт данных канала 1.
+ */
 static void setLtrChannel1Low(uint8_t channel1Low)
 {
 	ltrRegisters[LTR_CHANNEL1_LOW_INDEX] = channel1Low;
 }
 
+/**
+  @brief Записывает значение регистра CHANNEL1_HIGH в массив регистров датчика освещённости.
+  @param channel1High Старший байт данных канала 1.
+ */
 static void setLtrChannel1High(uint8_t channel1High)
 {
 	ltrRegisters[LTR_CHANNEL1_HIGH_INDEX] = channel1High;
 }
 
+/**
+  @brief Записывает значение регистра CHANNEL0_LOW в массив регистров датчика освещённости.
+  @param channel0Low Младший байт данных канала 0.
+ */
 static void setLtrChannel0Low(uint8_t channel0Low)
 {
 	ltrRegisters[LTR_CHANNEL0_LOW_INDEX] = channel0Low;
 }
 
+/**
+  @brief Записывает значение регистра CHANNEL0_HIGH в массив регистров датчика освещённости.
+  @param channel0High Старший байт данных канала 0.
+ */
 static void setLtrChannel0High(uint8_t channel0High)
 {
 	ltrRegisters[LTR_CHANNEL0_HIGH_INDEX] = channel0High;
 }
 
+/**
+  @brief Записывает значение регистра STATUS в массив регистров датчика освещённости.
+  @param ltrDataStatus Статус измерения освещённости.
+  @param ltrDataGainRange Усиление датчика освещённости.
+  @param ltrDataValidity Достоверность данных датчика освещённости.
+ */
 static void setLtrStatus(LtrDataStatus ltrDataStatus,
 					     LtrDataGainRange ltrDataGainRange,
 					     LtrDataValidity ltrDataValidity)
@@ -319,6 +402,10 @@ static void setLtrStatus(LtrDataStatus ltrDataStatus,
 	ltrRegisters[LTR_STATUS_INDEX] = reg;
 }
 
+/**
+  @brief Возвращает режим работы датчика освещённости из массива регистров датчика освещённости.
+  @return Режим работы датчика освещённости.
+ */
 static LtrMode getLtrMode()
 {
 	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
@@ -326,6 +413,10 @@ static LtrMode getLtrMode()
 	return ltrMode;
 }
 
+/**
+  @brief Возвращает перезагрузку датчика освещённости из массива регистров датчика освещённости.
+  @return Перезагрузка датчика освещённости.
+ */
 static LtrReset getLtrReset()
 {
 	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
@@ -333,6 +424,10 @@ static LtrReset getLtrReset()
 	return ltrReset;
 }
 
+/**
+  @brief Возвращает усиление датчика освещённости из массива регистров датчика освещённости.
+  @return Усиление датчика освещённости.
+ */
 static LtrGain getLtrGain()
 {
 	uint8_t reg = ltrRegisters[LTR_CONTROL_INDEX];
@@ -340,6 +435,10 @@ static LtrGain getLtrGain()
 	return ltrGain;
 }
 
+/**
+  @brief Возвращает период измерения датчика освещённости из массива регистров датчика освещённости.
+  @return Период измерения датчика освещённости.
+ */
 static LtrMeasurementRate getLtrMeasurementRate()
 {
 	uint8_t reg = ltrRegisters[LTR_MEASUREMENT_RATE_INDEX];
@@ -348,6 +447,10 @@ static LtrMeasurementRate getLtrMeasurementRate()
 	return ltrMeasurementRate;
 }
 
+/**
+  @brief Возвращает время интеграции датчика освещённости из массива регистров датчика освещённости.
+  @return Время интеграции датчика освещённости.
+ */
 static LtrIntegrationTime getLtrIntegrationTime()
 {
 	uint8_t reg = ltrRegisters[LTR_MEASUREMENT_RATE_INDEX];
@@ -356,6 +459,10 @@ static LtrIntegrationTime getLtrIntegrationTime()
 	return ltrIntegrationTime;
 }
 
+/**
+  @brief Возвращает номер ревизии датчика освещённости из массива регистров датчика освещённости.
+  @return Номер ревизии датчика освещённости.
+ */
 static uint8_t getLtrRevisionId()
 {
 	uint8_t reg = ltrRegisters[LTR_PART_ID_INDEX];
@@ -364,6 +471,11 @@ static uint8_t getLtrRevisionId()
 	return ltrRevisionId;
 }
 
+
+/**
+  @brief Возвращает серийный номер датчика освещённости из массива регистров датчика освещённости.
+  @return Серийный номер датчика освещённости.
+ */
 static uint8_t getLtrPartNumberId()
 {
 	uint8_t reg = ltrRegisters[LTR_PART_ID_INDEX];
@@ -372,31 +484,55 @@ static uint8_t getLtrPartNumberId()
 	return ltrPartNumberId;
 }
 
+/**
+  @brief Возвращает производственный номер датчика освещённости из массива регистров датчика освещённости.
+  @return Производственный номер датчика освещённости.
+ */
 static uint8_t getLtrManufacturerId()
 {
 	return ltrRegisters[LTR_MANUFACTURER_ID_INDEX];
 }
 
+/**
+  @brief Возвращает младший байт данных канала 1 из массива регистров датчика освещённости.
+  @return Младший байт данных канала 1.
+ */
 static uint8_t getLtrChannel1Low()
 {
 	return ltrRegisters[LTR_CHANNEL1_LOW_INDEX];
 }
 
+/**
+  @brief Возвращает старший байт данных канала 1 из массива регистров датчика освещённости.
+  @return Старший байт данных канала 1.
+ */
 static uint8_t getLtrChannel1High()
 {
 	return ltrRegisters[LTR_CHANNEL1_HIGH_INDEX];
 }
 
+/**
+  @brief Возвращает младший байт данных канала 0 из массива регистров датчика освещённости.
+  @return Младший байт данных канала 0.
+ */
 static uint8_t getLtrChannel0Low()
 {
 	return ltrRegisters[LTR_CHANNEL0_LOW_INDEX];
 }
 
+/**
+  @brief Возвращает старший байт данных канала 0 из массива регистров датчика освещённости.
+  @return Старший байт данных канала 0.
+ */
 static uint8_t getLtrChannel0High()
 {
 	return ltrRegisters[LTR_CHANNEL0_HIGH_INDEX];
 }
 
+/**
+  @brief Возвращает статус измерения освещённости из массива регистров датчика освещённости.
+  @return Статус измерения освещённости.
+ */
 static LtrDataStatus getLtrDataStatus()
 {
 	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
@@ -405,6 +541,10 @@ static LtrDataStatus getLtrDataStatus()
 	return ltrDataStatus;
 }
 
+/**
+  @brief Возвращает усиление датчика освещённости из массива регистров датчика освещённости.
+  @return Усиление датчика освещённости.
+ */
 static LtrDataGainRange getLtrDataGainRange()
 {
 	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
@@ -413,6 +553,10 @@ static LtrDataGainRange getLtrDataGainRange()
 	return ltrDataGainRange;
 }
 
+/**
+  @brief Возвращает достоверность данных датчика освещённости из массива регистров датчика освещённости.
+  @return Достоверность данных датчика освещённости.
+ */
 static LtrDataValidity getLtrDataValidity()
 {
 	uint8_t reg = ltrRegisters[LTR_STATUS_INDEX];
@@ -421,6 +565,12 @@ static LtrDataValidity getLtrDataValidity()
 	return ltrDataValidity;
 }
 
+/**
+  @brief Проверяет готовность новых данных датчика освещённости для чтения.
+  @return Готовность новых данных датчика освещённости для чтения. \n
+  true - Новые данные датчика освещённости готовы для чтения. \n
+  false - Новые данные датчика освещённости не готовы для чтения.
+ */
 static bool isNewLuxDataAvailable()
 {
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
@@ -449,6 +599,9 @@ static bool isNewLuxDataAvailable()
 	}
 }
 
+/**
+  @brief Читает новые данные датчика освещённости в необработанном виде.
+ */
 static void readLuxData()
 {
 	osMutexAcquire(mutexI2cHandle, osWaitForever);
@@ -465,9 +618,13 @@ static void readLuxData()
 	osMutexRelease(mutexI2cHandle);
 }
 
+/**
+  @brief Преобразует полученные данные из датчика освещённости в освещённость в люксах.
+  @return Освещённость, лк
+ */
 static uint16_t calculateLux()
 {
-	static uint16_t lux_ = 0;
+	uint16_t lux_ = 0;
 
 	uint16_t channel0 = 0;
 	uint8_t channel0High = getLtrChannel0High();
@@ -559,6 +716,10 @@ static uint16_t calculateLux()
 	return lux_;
 }
 
+/**
+  @brief Записывает освещённость в глобальную переменную.
+  @param lux_ Освещённость, лк
+ */
 static void setLux(uint16_t lux_)
 {
 	osMutexAcquire(mutexLuxHandle, osWaitForever);
@@ -566,6 +727,10 @@ static void setLux(uint16_t lux_)
 	osMutexRelease(mutexLuxHandle);
 }
 
+/**
+  @brief Возвращает освещённость.
+  @return Освещённость, лк
+ */
 uint16_t getLux()
 {
 	uint16_t lux_ = 0;
